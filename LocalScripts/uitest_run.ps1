@@ -44,6 +44,7 @@ function MsbuildPath {
 
 [string] $appName = "XamarinPipelineDemo"
 [string] $appPackageName = "com.demo.$appName"
+[string] $uiTestProjName = "$appName.UITest"
 
 [string] $adb = ChooseCmd(@("adb", "C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe"))
 
@@ -60,7 +61,8 @@ if(!$SkipBuild) {
     & $msbuild ../$appName.Android/$appName.Android.csproj `
         /p:Configuration=$BuildConfiguration `
         /t:SignAndroidPackage
-    & $msbuild ./$appName.UITest.csproj /p:Configuration=$BuildConfiguration
+    & $msbuild ../$uiTestProjName/$uiTestProjName.csproj `
+        /p:Configuration=$BuildConfiguration
 }
 
 if(!$env:ANDROID_HOME) {
@@ -76,5 +78,7 @@ $env:UITEST_APK_PATH = "../$appName.Android/bin/$BuildConfiguration/$appPackageN
 $nunitConsole = ChooseCmd(@(
     "nunit3-console",
     "C:\Program Files (x86)\NUnit.org\nunit-console\nunit3-console.exe"))
-& $nunitConsole bin/$BuildConfiguration/$appName.UITest.dll --output=uitest.log
+& $nunitConsole `
+    ../$uiTestProjName/bin/$BuildConfiguration/$appName.UITest.dll `
+    --output=uitest.log
 
