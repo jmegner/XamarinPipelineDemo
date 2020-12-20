@@ -1,0 +1,246 @@
+# Xamarin.Android
+# https://docs.microsoft.com/azure/devops/pipelines/languages/xamarin
+
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    # common
+    - 'XamarinPipelineDemo'
+    - 'XamarinPipelineDemo.NUnit'
+    - 'XamarinPipelineDemo.UITest'
+    - 'XamarinPipelineDemo.sln'
+    # platform
+    - 'XamarinPipelineDemo.Android'
+
+pool:
+  vmImage: 'macos-latest'
+
+variables:
+  - group: android_demo_var_group
+
+  - name: solution
+    value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.sln'
+
+  - name: buildConfiguration
+    value: 'Release'
+
+  - name: outputDir
+    value: '$(Build.BinariesDirectory)/$(buildConfiguration)'
+
+  - name: pipelineBuildNumber
+    value: $[counter(variables['Build.DefinitionName'], 1)]
+
+  - name: finalApkCommonPart
+    value: '$(Build.ArtifactStagingDirectory)/XamarinPipelineDemo_$(Build.BuildNumber)_$(pipelineBuildNumber)'
+
+  - name: finalApkPathUnsigned
+    value: '$(finalApkCommonPart)_Unsigned.apk'
+
+  - name: finalApkPathSigned
+    value: '$(finalApkCommonPart)_Signed.apk'
+
+  - name: androidPipelineDir
+    value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.Android/AzureDevOps'
+
+  - name: nugetPackageDir
+    value: '$(System.DefaultWorkingDirectory)/packages'
+
+  - name: uiTestDir
+    value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.UITest'
+
+  - name: uiTestResultPath
+    value: '$(Build.ArtifactStagingDirectory)/uitest_result.xml'
+
+  - name: uiTestLogPath
+    value: '$(Build.ArtifactStagingDirectory)/uitest.log'
+
+  - name: adb
+    value: '$ANDROID_HOME/platform-tools/adb'
+
+  - name: emulator
+    value: '$ANDROID_HOME/emulator/emulator'
+
+  - name: wantAppCenter
+    value: false
+
+  - name: wantEmulatorUiTests
+    value: true
+
+  # set this to false when things are working and you don't need to debug
+  # pipeline problems
+  - name: System.Debug
+    value: true
+
+################################################################################
+steps:
+
+################################################################################
+# build app and make APK
+
+# doing a new Xamarin Android app pipeline gets you this task
+- task: NuGetToolInstaller@1
+
+# doing a new Xamarin Android app pipeline gets you a simpler form of this task
+- task: NuGetCommand@2
+  displayName: 'nuget-restore solution'
+  inputs:
+    restoreSolution: '$(solution)'
+    # Xamarin.UITest nuget packages sometimes go to global nuget cache but we need
+    # a known folder for Xamarin.UTTest's test-cloud.exe for AppCenterTest
+    # https://github.com/microsoft/azure-pipelines-tasks/issues/6868#issuecomment-547565284
+    restoreDirectory: '$(nugetPackageDir)'
+
+- task: PowerShell@2
+  displayName: 'Set build-based Android app version'
+  inputs:
+    filePath: '$(androidPipelineDir)/AndroidSetVersion.ps1'
+    arguments: >
+      -manifestPath '$(Build.SourcesDirectory)/XamarinPipelineDemo.Android/Properties/AndroidManifest.xml'
+      -versionCodeBase 0
+      -versionCodeOffset $(pipelineBuildNumber)
+      -versionName '$(Build.BuildNumber)'
+
+- task: XamarinAndroid@1
+  inputs:
+    projectFile: '**/*droid*.csproj'
+    outputDir: '$(outputDir)'
+    configuration: '$(buildConfiguration)'
+
+- pwsh: Get-ChildItem -Recurse "$(outputDir)/*.apk" | ForEach-Object { Copy-Item $_ -Destination "$(finalApkPathUnsigned)" }
+  displayName: 'copy and rename unsigned apk'
+
+# REMINDER: You need to upload
+# XamarinPipelineDemo.Android/AzureDevops/example.keystore as a secure file and
+# make android_demo_var_group variable group with the following variables...
+#   androidKeystoreSecureFileName: example.keystore
+#   androidKeyAlias: androiddebugkey
+#   androidKeystorePassword: android
+#   androidKeyPassword: android
+- task: AndroidSigning@3
+  displayName: 'sign APK with example keystore'
+  inputs:
+    apkFiles: '$(outputDir)/*.apk'
+    apksignerKeystoreFile: '$(androidKeystoreSecureFileName)'
+    apksignerKeystoreAlias: '$(androidKeyAlias)'
+    apksignerKeystorePassword: '$(androidKeystorePassword)'
+    apksignerArguments: '--verbose --out $(finalApkPathSigned)'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'publish APK artifacts'
+  inputs:
+   artifactName: 'apks'
+   publishLocation: 'Container'
+
+################################################################################
+# unit tests
+
+# out unit test project is .net core, so "dotnet test" works on it
+- task: DotNetCoreCLI@2
+  displayName: 'unit tests'
+  inputs:
+    command: 'test'
+    projects: '**/*NUnit*.csproj'
+    configuration: '$(buildConfiguration)'
+
+################################################################################
+# AppCenter UI tests
+#
+# THESE STEPS ARE NOT REALLY TESTED
+
+# default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
+# https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
+- task: UseNode@1
+  displayName: 'Use Node 10.15.1'
+  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  inputs:
+    version: 10.15.1
+
+- task: AppCenterTest@1
+  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  inputs:
+    appFile: '$(finalApkPathSigned)'
+    frameworkOption: uitest
+    uiTestBuildDirectory: '$(uiTestDir)'
+    uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools' # you need to update the path when you update Xamarin.UITest version
+
+################################################################################
+# emulator UI tests
+# lots of inspiration from https://medium.com/genetec-tech/android-ui-testing-in-azure-devops-81bbe7cea9fd
+# older sources of inspiration from...
+# https://github.com/janpio/azure-pipelines-android_emulator
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/ecosystems/android?view=azure-devops#test-on-the-android-emulator
+
+- bash: |
+    set -o xtrace
+    $ANDROID_HOME/tools/bin/sdkmanager --list
+  displayName: 'list already installed Android packages'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+
+- bash: |
+    set -o xtrace
+    echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-30;google_apis;x86'
+  displayName: 'install Android image'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+
+- bash: |
+    set -o xtrace
+    $(emulator) -list-avds
+    echo "no" | $ANDROID_HOME/tools/bin/avdmanager create avd -n uitest_android_emulator -k 'system-images;android-30;google_apis;x86' --force
+    $(emulator) -list-avds
+  displayName: 'create AVD'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+
+- bash: |
+    set -o xtrace
+    $(adb) devices
+    nohup $(emulator) -avd uitest_android_emulator -no-snapshot -no-boot-anim -gpu auto -qemu > /dev/null 2>&1 &
+  displayName: 'start Android emulator'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+
+- task: MSBuild@1
+  displayName: 'build ui tests'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  inputs:
+    solution: '**/*UITest*.csproj'
+    configuration: '$(buildConfiguration)'
+
+- bash: |
+    set -o xtrace
+    $(adb) wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done; input keyevent 82'
+    $(adb) devices
+  displayName: 'wait for Android emulator'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  timeoutInMinutes: 5
+
+# have to run nunit3-console directly; as of 2020-12-17, even though "dotnet
+# run" works with Mono to run .net framework projects, "dotnet test" does not
+# work the same project; see open issue https://github.com/mono/mono/issues/6984
+- pwsh: |
+    Set-PSDebug -Trace 1
+    $env:UITEST_APK_PATH = "$(finalApkPathSigned)"
+    $testAssemblies = Get-Item "$(uiTestDir)/bin/$(buildConfiguration)/XamarinPipelineDemo.UITest*.dll"
+    nunit3-console $testAssemblies --output="$(uiTestLogPath)" --result="$(uiTestResultPath)"
+  displayName: 'run ui tests'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  continueOnError: true
+  timeoutInMinutes: 120
+
+- task: PublishBuildArtifacts@1
+  displayName: 'publish ui test log artifact'
+  inputs:
+   artifactName: 'UI test log'
+   pathToPublish: '$(uiTestLogPath)'
+   publishLocation: 'Container'
+  continueOnError: true
+
+- task: PublishTestResults@2
+  condition: eq(variables.wantEmulatorUiTests, true)
+  inputs:
+    testRunTitle: 'Android UI Test Run'
+    testResultsFormat: 'NUnit'
+    testResultsFiles: '$(uiTestResultPath)'
+    failTaskOnFailedTests: false # Android tests may randomly fail because of the System UI not responding. https://github.com/PrismLibrary/Prism/issues/2099
+
