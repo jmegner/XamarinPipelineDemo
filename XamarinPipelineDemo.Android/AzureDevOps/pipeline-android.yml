@@ -134,7 +134,6 @@ steps:
   displayName: 'publish APK artifacts'
   inputs:
    artifactName: 'apks'
-   publishLocation: 'Container'
 
 ################################################################################
 # unit tests
@@ -235,7 +234,6 @@ steps:
   inputs:
    artifactName: 'UI test log'
    pathToPublish: '$(uiTestLogPath)'
-   publishLocation: 'Container'
   continueOnError: true
 
 - task: PublishTestResults@2
