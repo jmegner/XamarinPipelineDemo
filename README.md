@@ -120,18 +120,22 @@ OSes.
 
 The MacOS agent has a few pitfalls to watch out for.
 
-* MacOS must use Mono when dealing with .net framework stuff (originally made
-  just for Windows).  So, .net framework stuff that works on your Windows
+* MacOS must use Mono when dealing with .NET Framework stuff (originally made
+  just for Windows).  So, .NET Framework stuff that works on your Windows
   machine may not do so well in the pipeline.  Try to make your project target
-  .net core or .net 5 where possible.  Of special note, make your Nunit
-  unit-test project .net core or .net 5.
+  .NET Core or .NET 5 where possible.  Of special note, make your Nunit
+  unit-test project .NET Core or .NET 5.
     * Of special note, you can't use DotNetCoreCLI task on a MacOS agent to run
-      test projects that target .net framework.
+      test projects that target .NET Framework.
       [Mono's open issue 6984](https://github.com/mono/mono/issues/6984) says that you can do
-      "dotnet build" on a .net framework project, but you can't "dotnet test".
-* Xamarin.UITest MUST be .net framework, so you can not use DotNetCoreCLI task
+      "dotnet build" on a .NET Framework project, but you can't "dotnet test".
+* Xamarin.UITest MUST be .NET Framework, so you can not use DotNetCoreCLI task
   to run Xamarin.UITest tests.
-* MacOS agent also doesn't support VSTest or VsBuild tasks.
+* MacOS agent also doesn't support
+  [VSTest](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/vstest?view=azure-devops)
+  or
+  [VsBuild](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/build/visual-studio-build?view=azure-devops)
+  tasks.
 * The only thing left to do for Xamarin.UITest is a MSBuild task to build it,
   then directly run nunit3-console to run the Xamarin.UITest tests.
 * MacOS agents are case sensitive for path stuff while Windows is not, so make
@@ -202,7 +206,9 @@ because it is so long.  Unfortunately there are
 [three different syntaxes](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#understand-variable-syntax)
 for referencing variables.  You can mostly use
 [macro syntax](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#macro-syntax-variables),
-which looks like `$(someVariable)`.
+which looks like `$(someVariable)` and leads to the variable being processed
+just before a task executes. Macro syntax can not be used in `trigger` or
+`resource` sections, and can not be used as yaml keys.
 
 If the pipeline encounters `$(someVariable)` and doesn't recognize
 `someVariable` as a variable, then the expression stays as is (because maybe
@@ -214,15 +220,22 @@ check your spelling, and if it's a variable from a variable group (defined in
 Library section of web interface), you need to explicitly reference the
 variable group.
 
-My pipeline yaml uses macro syntax all over the place. The only time I
-don't use macro syntax is when I use
+My pipeline yaml mostly uses macro syntax. One notable exception is
 [runtime expression syntax](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#runtime-expression-syntax)
 (`$[variables.someVariable]`) in conditions and expressions, as is
 [recommended](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#what-syntax-should-i-use).
-You can see the runtime expression syntax in my pipeline's step conditions, just search
-for "condition:" or "variables.".
+You can see the runtime expression syntax in my pipeline's step conditions,
+just search for "condition:" or "variables.".  Another exception is Azure
+DevOps's surprising (but reasonable) way of
+[setting/creating pipeline variables from scripts](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#set-variables-in-scripts):
+outputting a line to standard output that conforms to
+[logging command syntax](https://docs.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=bash);
+here's an example:
+```
+- pwsh: Write-Output "##vso[task.setvariable variable=someVariable]some string with spaces allowed"
+```
 
-Also, non-secret variables are
+Non-secret variables are
 [mapped to environment variables](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#access-variables-through-the-environment)
 for each task.
 
@@ -601,12 +614,16 @@ step for APKs...
 Previously, an inline powershell script copied an unsigned APK file to
 `Build.ArtifactStagingDirectory`, and then `AndroidSigning` task created its
 APK and idsig outputs in `Build.ArtifactStagingDirectory`.
-`PublishBuildArtifacts`'s `pathToPublish` input defaults to publishing all
-files in `Build.ArtifactStagingDirectory`, so the default works out.
+`PublishBuildArtifacts`'s `pathToPublish` input defaults to publishing the
+directory `Build.ArtifactStagingDirectory`, so the default works out.
 `PublishBuildArtifact`'s
 [source code](https://github.com/microsoft/azure-pipelines-tasks/blob/f332a4b07713aaa94365fc741127618376a89304/Tasks/PublishBuildArtifactsV1/publishbuildartifacts.ts#L70)
 suggests to me that published files are not removed, so keep that in mind when
 doing multiple publishes.
+
+When you download the `apks` artifact, the download will be a zip file named
+`apks.zip`, which will contain an `apks` folder that will contain all the
+published files.
 
 Note that `pathToPublish` does not support wildcards.
 
@@ -623,10 +640,156 @@ when I view the build run.  The alternate option for `publishLocation` is
 have to set up
 
 ## Build And Run Unit Tests ##
-TODO
+To build and run unit tests,
+[`DotNetCoreCLI`](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/build/dotnet-core-cli?view=azure-devops)
+will take care of...
+* Building the test project and its dependencies.
+* Discovering and running the tests in the test project.
+* Publishing the test results so you can see and explore them in Azure DevOps's
+  web interface.  This includes the build being marked with something like "90%
+  of tests passing".
 
-## Run AppCenter UI Tests ##
-TODO (and remember the pitfalls of Xamarin.UITest's nuget folder (test-cloude.exe!), and you need Node v10)
+One requirement is that your test project is .NET Core or .NET 5. (Currently,
+"dotnet test" does not support Mono, but that may change.) Even if you get
+"dotnet test" to work on your Windows machine by making the project SDK-style (
+[format article](https://docs.microsoft.com/en-us/nuget/resources/check-project-format),
+[overview article](https://docs.microsoft.com/en-us/dotnet/core/project-sdk/overview)),
+it won't work on the MacOS agent; you'll get errors about not having the
+references assemblies...
+```
+##[error]/Users/runner/.dotnet/sdk/3.1.404/Microsoft.Common.CurrentVersion.targets(1177,5): Error MSB3644: The reference assemblies for .NETFramework,Version=v5.0 were not found. To resolve this, install the Developer Pack (SDK/Targeting Pack) for this framework version or retarget your application. You can download .NET Framework Developer Packs at https://aka.ms/msbuild/developerpacks
+/Users/runner/.dotnet/sdk/3.1.404/Microsoft.Common.CurrentVersion.targets(1177,5): error MSB3644: The reference assemblies for .NETFramework,Version=v5.0 were not found. To resolve this, install the Developer Pack (SDK/Targeting Pack) for this framework version or retarget your application. You can download .NET Framework Developer Packs at https://aka.ms/msbuild/developerpacks [/Users/runner/work/1/s/XamarinPipelineDemo.NUnit/XamarinPipelineDemo.NUnit.csproj]
+```
+
+The step for unit tests is...
+```
+- task: DotNetCoreCLI@2
+  displayName: 'unit tests'
+  inputs:
+    command: 'test'
+    projects: '**/*NUnit*.csproj'
+    configuration: '$(buildConfiguration)'
+```
+
+The `projects`
+[input](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/build/dotnet-core-cli?view=azure-devops#arguments)
+supports path wildcards.  The code we are testing is already built with the
+`Release` build configuration, so if we build our test project with the same
+build configuration, we won't have to rebuild our dependencies.
+
+Just so you know, if you dig in to the
+[`dotnet test` doc](https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-test),
+the
+[configuration option](https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-test#options)
+defaults to `Debug`.  The default build configuration is `Debug` for `msbuild`
+and other `dotnet` commands as well.
+
+Remember that
+[VSTest task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/vstest?view=azure-devops)
+is not available on MacOS agents.  If you need an alternative to
+`DotNetCoreCLI` for testing, you'd have to do...
+* [MSBuild task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/build/msbuild?view=azure-devops)
+  to build the needed projects.
+* A [script task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/utility/powershell?view=azure-devops):
+  to run
+  [nunit3-console](https://docs.nunit.org/articles/nunit/running-tests/Console-Command-Line.html)
+  (already installed on MacOS agents) to run the tests.
+* [PublishTestResults task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/publish-test-results?view=azure-devops&tabs=trx%2Cyaml)
+  to publish the test results so you can explore them.
+* [PublishCodeCoverageResults task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/publish-code-coverage-results?view=azure-devops)
+  if you want to also see code coverage results.
+
+
+## Run App Center UI Tests ##
+This demo isn't really about App Center tests, but I'd love to go over some
+workarounds/solutions to some of the problems you might have, possibly saving
+you a lot of time.
+
+Here are the relevant pipeline steps...
+```
+- task: NuGetCommand@2
+  displayName: 'nuget-restore solution'
+  inputs:
+    restoreSolution: '$(solution)'
+    # Xamarin.UITest nuget packages sometimes go to global nuget cache but we need
+    # a known folder for Xamarin.UTTest's test-cloud.exe for AppCenterTest
+    # https://github.com/microsoft/azure-pipelines-tasks/issues/6868#issuecomment-547565284
+    restoreDirectory: '$(nugetPackageDir)'
+
+# ... lots of steps omitted here ...
+
+# default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
+# https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
+- task: UseNode@1
+  displayName: 'Use Node 10.15.1'
+  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  inputs:
+    version: 10.15.1
+
+- pwsh: |
+    $uiTestToolsDir = (Get-ChildItem "$(nugetPackageDir)/Xamarin.UITest/*/tools")[0].FullName
+    Write-Output "##vso[task.setvariable variable=uiTestToolsDir]$uiTestToolsDir"
+  displayName: 'find Xamarin.UITest tools directory'
+  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+
+- task: AppCenterTest@1
+  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  inputs:
+    appFile: '$(finalApkPathSigned)'
+    frameworkOption: uitest
+    uiTestBuildDirectory: '$(uiTestDir)'
+    uiTestToolsDirectory: '$(uiTestToolsDir)'
+    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
+    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
+    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
+```
+
+If you get errors like "Error: Command test prepare uitest ... is invalid",
+then you have a nodejs version problem.  Unfortunately, (as of time of
+writing), Azure DevOps pipelines default to nodejs version 12, but
+AppCenterTest task requires nodejs version 10.  Thus, the demo uses the
+`UseNode` task to set nodejs to version 10.15.1, just like this
+[appcenter-cli issue 696 thread](https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361)
+suggests.
+
+Strangely enough, I can't find `UseNode` task doc via searching or looking
+through all the other
+[task docs](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/?view=azure-devops).
+There's
+[`NodeTool`](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/tool/node-js?view=azure-devops)
+task doc, but looking at the source code of these tasks
+([`usenode.ts`](https://github.com/microsoft/azure-pipelines-tasks/blob/master/Tasks/UseNodeV1/usenode.ts),
+[`nodetool.ts`](https://github.com/microsoft/azure-pipelines-tasks/blob/master/Tasks/NodeToolV0/nodetool.ts))
+and comments, they don't seem to do the same thing.
+
+If you get a `test-cloud.exe` related error like this...
+```
+Preparing tests... failed.
+Error: Cannot find test-cloud.exe, which is required to prepare UI tests.
+We have searched for directory "packages\Xamarin.UITest.*\tools" inside "D:\" and all of its parent directories.
+Please use option "--uitest-tools-dir" to manually specify location of this tool.
+Minimum required version is "2.2.0".
+##[error]Error: D:\a\_tasks\AppCenterTest_ad5cd22a-be4e-48bb-adce-181a32432da5\1.152.3\node_modules\.bin\appcenter.cmd failed with return code: 3
+```
+...then you need to be sure that your
+[`AppCenterTest` task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/app-center-test?view=azure-devops)'s
+`uiTestToolsDirectory` input is set to the `tools` folder underneath the
+[Xamarin.UITest package](https://www.nuget.org/packages/Xamarin.UITest/)
+folder.  The `tools` folder contains `test-cloud.exe`.
+
+Unfortunately, there's a few places that Xamarin.UITest's nuget package folder
+could go, so I altered my `NuGetCommand` step to use `nugetPackageDir` as the
+`restoreDirectory`. There's also the unfortunate complication that the `tools`
+folder will be underneath a different version folder each time you update yur
+Xamarin.UITest package, so I used an inline PowerShell script to find the exact
+folder and set the `uiTestToolsDir` variable.  That `uiTestToolsDir` variable
+is used for the `uiTestToolsDirectory` task input.
+
+Note:
+[this azure-pipelines-tasks issue discussion](https://github.com/microsoft/azure-pipelines-tasks/issues/6868)
+is where I learned about the nature of the `test-cloud.exe` problem and some
+workarounds.  The PowerShell script to solve version folder problem is my own
+invention.
 
 ## Set Up And Start Android Emulator ##
 TODO

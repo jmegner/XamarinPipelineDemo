@@ -138,7 +138,7 @@ steps:
 ################################################################################
 # unit tests
 
-# out unit test project is .net core, so "dotnet test" works on it
+# our unit test project is .net core, so "dotnet test" works on it
 - task: DotNetCoreCLI@2
   displayName: 'unit tests'
   inputs:
@@ -149,7 +149,7 @@ steps:
 ################################################################################
 # AppCenter UI tests
 #
-# THESE STEPS ARE NOT REALLY TESTED
+# THESE STEPS ARE NOT FULLY VERIFIED
 
 # default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
 # https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
@@ -159,13 +159,22 @@ steps:
   inputs:
     version: 10.15.1
 
+- pwsh: |
+    $uiTestToolsDir = (Get-ChildItem "$(nugetPackageDir)/Xamarin.UITest/*/tools")[0].FullName
+    Write-Output "##vso[task.setvariable variable=uiTestToolsDir]$uiTestToolsDir"
+  displayName: 'find Xamarin.UITest tools directory'
+  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+
 - task: AppCenterTest@1
   condition: and(succeeded(), eq(variables.wantAppCenter, true))
   inputs:
     appFile: '$(finalApkPathSigned)'
     frameworkOption: uitest
     uiTestBuildDirectory: '$(uiTestDir)'
-    uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools' # you need to update the path when you update Xamarin.UITest version
+    uiTestToolsDirectory: '$(uiTestToolsDir)'
+    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
+    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
+    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
 
 ################################################################################
 # emulator UI tests
