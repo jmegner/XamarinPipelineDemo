@@ -251,6 +251,9 @@ steps:
     testRunTitle: 'Android UI Test Run'
     testResultsFormat: 'NUnit'
     testResultsFiles: '$(uiTestResultPath)'
-    # Android tests may randomly fail because of the System UI not responding (if you're using Prism). https://github.com/PrismLibrary/Prism/issues/2099
-    failTaskOnFailedTests: false
+    # Android tests may randomly fail because of the System UI not responding (if you're using Prism);
+    # see https://github.com/PrismLibrary/Prism/issues/2099 ;
+    # tests may also fail due to pool agent problems;
+    # using the following line still makes builds have warning status when UI tests fail
+    # failTaskOnFailedTests: false
 
