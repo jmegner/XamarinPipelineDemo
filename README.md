@@ -836,7 +836,7 @@ value of `serviceEndpoint`. The `serverEndpoint` input needs to specify the
 "service connection for AppCenter".  Steps to create and use a service
 connection...
 * In App Center,
-  [create a full-access App Center app API token](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-app-api-token).
+  [create a *full-access* App Center *user* API token](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-user-api-token).
 * In Azure DevOps, go to your project settings, then pipelines section, then service connections entry.
   * Create a new service connection.
   * For service connection type, scroll down to the bottom and select "Visual
@@ -848,6 +848,25 @@ connection...
   time that a pipeline uses the service connection.
 * In pipeline definition, use the name of the service connection for your
   `serverEndpoint` input.
+
+A read-only token will give you an `Error: forbidden` error.  You
+need a full-access token.
+
+It would be nice to make an app token (which only has access to
+one App Center app), but as of 2021-Jan, but app tokens do not work. You'll get a 
+`Error: empty email address` error with an app token. You need to use a user
+token, which is associated with a user and has access to everything that user
+has access to.
+[This stackoverflow discussion](https://stackoverflow.com/questions/64008037/error-empty-email-address-doing-postbuild-in-appcenter)
+says that Microsoft's official advice as of 2020-Oct is:
+
+> For test you need to use the user level token only, app level token was not
+supported. Our test team was already working on this but currently there is no
+ETA on it.
+
+Once they fix the app token issue, you can follow
+[these instructions](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-app-api-token).
+to make an App Center app API token.
 
 
 /////////////////////////////////////////////////////////////////////////
