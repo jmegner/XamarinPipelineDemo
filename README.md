@@ -831,17 +831,23 @@ hexadecimal value or "the ID ... generated from the device set name". Does that
 mean you can just use the device set name? TODO
 
 TODO: serverEndpoint
-`serverEndpoint` input is required when using the default `credentialsOption` value of `serviceEndpoint`.
-The `serverEndpoint` input needs to specify the "service connection for AppCenter".  Steps to create service connection...
+`serverEndpoint` input is required when using the default `credentialsOption`
+value of `serviceEndpoint`. The `serverEndpoint` input needs to specify the
+"service connection for AppCenter".  Steps to create and use a service
+connection...
 * In App Center,
-  [create a read-only App Center app API token](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-app-api-token).
+  [create a full-access App Center app API token](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-app-api-token).
 * In Azure DevOps, go to your project settings, then pipelines section, then service connections entry.
   * Create a new service connection.
   * For service connection type, scroll down to the bottom and select "Visual
     Studio App Center".
   * Supply the API token and name the service connection (ex:
     `AppCenterConnectionXamarinPipelineDemoFullAccess`)
-Then use the name of the service connection for your `serverEndpoint` input.
+* You'll either preemptively grant permission to all pipelines to use this
+  service connection, or you'll have to click some stuff to approve the first
+  time that a pipeline uses the service connection.
+* In pipeline definition, use the name of the service connection for your
+  `serverEndpoint` input.
 
 
 /////////////////////////////////////////////////////////////////////////
