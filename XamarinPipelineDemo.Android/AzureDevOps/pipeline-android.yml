@@ -3,7 +3,7 @@ trigger:
   #batch: true
   branches:
     include:
-    - main
+    - AppCenterExperiments
   paths:
     include:
     # common
