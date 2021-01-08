@@ -173,7 +173,7 @@ steps:
     devices: 'demo_device_set' # name of the device set made in AppCenter
     frameworkOption: uitest
     uiTestBuildDirectory: '$(uiTestAssemblyDir)'
-    #uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
+    uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
 
 - pwsh: |
     Write-Output 'JME examining "$(uiTestDir)"'

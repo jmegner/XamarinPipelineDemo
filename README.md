@@ -799,6 +799,10 @@ Error: Cannot prepare UI Test artifacts using command: mono /Users/runner/work/1
 The NUnit library was not found, please try again. If you can't work out how to fix this issue, please contact support.
 ```
 
+TODO: uiTestToolsDirectory
+Yes, you need to explicitly put the assembly dir (containing `test-cloud.exe`)
+as `uiTestToolsDirectory` input.
+
 
 TODO: appSlug
 You have to supply an `appSlug` input, or you'll get the error message
