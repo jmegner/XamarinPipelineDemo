@@ -46,11 +46,6 @@ function MsbuildPath {
 [string] $appPackageName = "com.demo.$appName"
 [string] $uiTestProjName = "$appName.UITest"
 
-[string] $adb = ChooseCmd(@("adb", "C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe"))
-
-& $adb uninstall $appPackageName
-& $adb uninstall "$appPackageName.test"
-
 if(!$SkipBuild) {
     [string] $msbuild = ChooseCmd(@(
         "msbuild",
@@ -64,6 +59,11 @@ if(!$SkipBuild) {
     & $msbuild ../$uiTestProjName/$uiTestProjName.csproj `
         /p:Configuration=$BuildConfiguration
 }
+
+[string] $adb = ChooseCmd(@("adb", "C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe"))
+
+& $adb uninstall $appPackageName
+& $adb uninstall "$appPackageName.test"
 
 if(!$env:ANDROID_HOME) {
     $env:ANDROID_HOME = "C:\Program Files (x86)\Android\android-sdk"

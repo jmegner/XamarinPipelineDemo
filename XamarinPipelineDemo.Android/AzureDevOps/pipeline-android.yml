@@ -176,6 +176,14 @@ steps:
     # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
     #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
 
+- pwsh: |
+    Write-Output JME examining "$(uiTestDir)"
+    Get-ChildItem -Recurse "$(uiTestDir)"
+    Write-Output JME looking for *nunit*.dll
+    Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
+  displayName: 'troubleshoot AppCenter error'
+  condition: eq(variables.wantAppCenter, true)
+
 ################################################################################
 # emulator UI tests
 # lots of inspiration from https://medium.com/genetec-tech/android-ui-testing-in-azure-devops-81bbe7cea9fd
@@ -186,14 +194,9 @@ steps:
 - bash: |
     set -o xtrace
     $ANDROID_HOME/tools/bin/sdkmanager --list
-  displayName: 'list already installed Android packages'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
-
-- bash: |
-    set -o xtrace
     echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-30;google_apis;x86'
   displayName: 'install Android image'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: eq(variables.wantEmulatorUiTests, true)
 
 - bash: |
     set -o xtrace
@@ -256,4 +259,24 @@ steps:
     # tests may also fail due to pool agent problems;
     # using the following line still makes builds have warning status when UI tests fail
     failTaskOnFailedTests: false
+
+- task: AppCenterTest@1
+  displayName: '2nd AppCenterTest after msbuild'
+  condition: eq(variables.wantAppCenter, true)
+  inputs:
+    appFile: '$(finalApkPathSigned)'
+    frameworkOption: uitest
+    uiTestBuildDirectory: '$(uiTestDir)'
+    uiTestToolsDirectory: '$(uiTestToolsDir)'
+    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
+    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
+    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
+
+- pwsh: |
+    Write-Output JME examining "$(uiTestDir)"
+    Get-ChildItem -Recurse "$(uiTestDir)"
+    Write-Output JME looking for *nunit*.dll
+    Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
+  displayName: 'troubleshoot AppCenter error'
+  condition: always()
 

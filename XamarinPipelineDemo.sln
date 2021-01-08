@@ -7,9 +7,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinPipelineDemo.Android
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamarinPipelineDemo", "XamarinPipelineDemo\XamarinPipelineDemo.csproj", "{6A6F6A44-34C6-4DFD-B755-B2AC0CCD5EB5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinPipelineDemo.NUnit", "XamarinPipelineDemo.NUnit\XamarinPipelineDemo.NUnit.csproj", "{3CE6C2C8-4386-400E-83FF-AEFA7F4C90ED}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamarinPipelineDemo.NUnit", "XamarinPipelineDemo.NUnit\XamarinPipelineDemo.NUnit.csproj", "{3CE6C2C8-4386-400E-83FF-AEFA7F4C90ED}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinPipelineDemo.UITest", "XamarinPipelineDemo.UITest\XamarinPipelineDemo.UITest.csproj", "{F52E5C1F-96F9-445C-B2C9-1ADC2418D71E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LocalScripts", "LocalScripts", "{8FF8048C-F80E-4006-9A7A-D1B33AFDA42B}"
+	ProjectSection(SolutionItems) = preProject
+		LocalScripts\uitest_run.ps1 = LocalScripts\uitest_run.ps1
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
