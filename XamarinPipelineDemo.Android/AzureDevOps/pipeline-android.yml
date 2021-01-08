@@ -63,7 +63,7 @@ variables:
     value: '$ANDROID_HOME/emulator/emulator'
 
   - name: wantAppCenter
-    value: false
+    value: true
 
   - name: wantEmulatorUiTests
     value: true
@@ -164,6 +164,7 @@ steps:
 
 - task: AppCenterTest@1
   condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  continueOnError: true
   inputs:
     appFile: '$(finalApkPathSigned)'
     frameworkOption: uitest
@@ -172,6 +173,16 @@ steps:
     # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
     # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
     #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
+
+- pwsh: |
+    Write-Output 'JME examining "$(uiTestDir)"'
+    Get-ChildItem -Recurse "$(uiTestDir)"
+    Write-Output 'JME examining "$(outputDir)"'
+    Get-ChildItem -Recurse "$(outputDir)"
+    Write-Output 'JME looking for *nunit*.dll'
+    Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
+  displayName: 'troubleshoot AppCenter error'
+  condition: succeededOrFailed()
 
 ################################################################################
 # emulator UI tests
@@ -183,14 +194,9 @@ steps:
 - bash: |
     set -o xtrace
     $ANDROID_HOME/tools/bin/sdkmanager --list
-  displayName: 'list already installed Android packages'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
-
-- bash: |
-    set -o xtrace
     echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-30;google_apis;x86'
   displayName: 'install Android image'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
 
 - bash: |
     set -o xtrace
@@ -198,18 +204,18 @@ steps:
     echo "no" | $ANDROID_HOME/tools/bin/avdmanager create avd -n uitest_android_emulator -k 'system-images;android-30;google_apis;x86' --force
     $(emulator) -list-avds
   displayName: 'create AVD'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
 
 - bash: |
     set -o xtrace
     $(adb) devices
     nohup $(emulator) -avd uitest_android_emulator -no-snapshot -no-boot-anim -gpu auto -qemu > /dev/null 2>&1 &
   displayName: 'start Android emulator'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
 
 - task: MSBuild@1
   displayName: 'build ui tests'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
   inputs:
     solution: '**/*UITest*.csproj'
     configuration: '$(buildConfiguration)'
@@ -219,7 +225,7 @@ steps:
     $(adb) wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done; input keyevent 82'
     $(adb) devices
   displayName: 'wait for Android emulator'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
   timeoutInMinutes: 5
 
 # have to run nunit3-console directly; as of 2020-12-17, even though "dotnet
@@ -231,19 +237,20 @@ steps:
     $testAssemblies = Get-Item "$(uiTestDir)/bin/$(buildConfiguration)/XamarinPipelineDemo.UITest*.dll"
     nunit3-console $testAssemblies --output="$(uiTestLogPath)" --result="$(uiTestResultPath)"
   displayName: 'run ui tests'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
   continueOnError: true
   timeoutInMinutes: 120
 
 - task: PublishBuildArtifacts@1
   displayName: 'publish ui test log artifact'
+  condition: eq(succeededOrFailed(), variables.wantEmulatorUiTests, true)
+  continueOnError: true
   inputs:
    artifactName: 'UI test log'
    pathToPublish: '$(uiTestLogPath)'
-  continueOnError: true
 
 - task: PublishTestResults@2
-  condition: eq(variables.wantEmulatorUiTests, true)
+  condition: eq(succeededOrFailed(), variables.wantEmulatorUiTests, true)
   inputs:
     testRunTitle: 'Android UI Test Run'
     testResultsFormat: 'NUnit'
@@ -253,3 +260,26 @@ steps:
     # tests may also fail due to pool agent problems;
     # using the following line still makes builds have warning status when UI tests fail
     failTaskOnFailedTests: false
+
+- task: AppCenterTest@1
+  displayName: '2nd AppCenterTest after msbuild'
+  continueOnError: true
+  condition: eq(succeededOrFailed(), variables.wantAppCenter, true)
+  inputs:
+    appFile: '$(finalApkPathSigned)'
+    frameworkOption: uitest
+    uiTestBuildDirectory: '$(uiTestDir)'
+    uiTestToolsDirectory: '$(uiTestToolsDir)'
+    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
+    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
+    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
+
+- pwsh: |
+    Write-Output 'JME examining "$(uiTestDir)"'
+    Get-ChildItem -Recurse "$(uiTestDir)"
+    Write-Output 'JME examining "$(outputDir)"'
+    Get-ChildItem -Recurse "$(outputDir)"
+    Write-Output 'JME looking for *nunit*.dll'
+    Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
+  displayName: '2nd troubleshoot AppCenter error'
+  condition: succeededOrFailed()
