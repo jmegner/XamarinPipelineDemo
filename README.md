@@ -13,8 +13,8 @@
     * [Pipeline Triggers](#Pipeline-Triggers)
     * [Pipeline Scripts And Strings](#Pipeline-Scripts-And-Strings)
   * [Give Each Build An Increasing Android App Version](#Give-Each-Build-An-Increasing-Android-App-Version)
-  * [How To Choose The Version](#How-To-Choose-The-Version)
-  * [Build The APK File](#Build-The-APK-File)
+    * [How To Choose The Version](#How-To-Choose-The-Version)
+    * [Build The APK File](#Build-The-APK-File)
   * [Sign The APK File](#Sign-The-APK-File)
     * [Keystore Background](#Keystore-Background)
     * [AndroidSigning Task](#AndroidSigning-Task)
@@ -777,6 +777,58 @@ is not available on MacOS agents.  If you need an alternative to
 
 
 ## Run App Center UI Tests ##
+
+/////////////////////////////////////////////////////////////////////////
+
+TODO: note default of `artifactsDirectory: '$(Build.ArtifactStagingDirectory)/AppCenterTest'`
+
+TODO: nunit.framework.dll
+following error is because `AppCenterTest` task is looking for
+`nunit.framework.dll` in the assembly directory, and isn't finding it.  It's
+possible you just haven't built the UITest project yet, or didn't assign the
+`uiTestBuildDirectory` input correctly.  Even though the input name suggests a
+build directory, the reference page describes the input as "Path to directory
+with built test assemblies".
+
+```
+Unable to find the nunit.framework.dll in the assembly directory. In Xamarin Studio you may have to right-click on the nunit.framework reference and choose Local Copy for it to be included in the output directory.
+
+Preparing tests... failed.
+Error: Cannot prepare UI Test artifacts using command: mono /Users/runner/work/1/s/packages/xamarin.uitest/3.0.12/tools/test-cloud.exe prepare "/Users/runner/work/1/a/XamarinPipelineDemo_20210108.2_1_Signed.apk" --assembly-dir "/Users/runner/work/1/s/XamarinPipelineDemo.UITest" --artifacts-dir "/Users/runner/work/1/a/AppCenterTest".
+
+The NUnit library was not found, please try again. If you can't work out how to fix this issue, please contact support.
+```
+
+
+TODO: appSlug
+You have to supply an `appSlug` input, or you'll get the error message
+`Error: Input required: appSlug`. The reference doc for that input says you
+need to specify it with format `{username}/{app_identifier}` and you can learn the
+values by looking at the URL of your app page in App Center:
+`https://appcenter.ms/users/{username}/apps/{app_identifier}`
+but `username` can also be your organization name and the URL might have format
+`https://appcenter.ms/orgs/{orgname}/apps/{app_identifier}`.
+My App Center app URL is
+`https://appcenter.ms/orgs/JacobEgnerDemos/apps/XamarinPipelineDemo`,
+so I used `appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'`.
+
+
+TODO: devices
+For the `devices` input, you need to have made a "test run" in App Center
+and chosen a set of devices for that test run.  At some point, they'll provide
+an `appcenter` command with an argument-value pair of something like `--devices
+4dda3193` and you can supply that hex number for your `AppCenterTest` task
+`devices` input.
+
+The
+[Starting A Test Run article](https://docs.microsoft.com/en-us/appcenter/test-cloud/starting-a-test-run)
+says that for the `appcenter` cli, the `devices` argument can be the
+hexadecimal value or "the ID ... generated from the device set name". Does that
+mean you can just use the device set name? TODO
+
+
+/////////////////////////////////////////////////////////////////////////
+
 This demo isn't really about App Center tests, but I'd love to go over some
 workarounds/solutions to some of the problems you might have, possibly saving
 you a lot of time.
