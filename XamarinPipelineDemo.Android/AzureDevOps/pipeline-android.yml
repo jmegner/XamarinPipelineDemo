@@ -66,7 +66,7 @@ variables:
     value: '$ANDROID_HOME/emulator/emulator'
 
   - name: wantAppCenter
-    value: false
+    value: true
 
   - name: wantEmulatorUiTests
     value: true
@@ -255,5 +255,5 @@ steps:
     # see https://github.com/PrismLibrary/Prism/issues/2099 ;
     # tests may also fail due to pool agent problems;
     # using the following line still makes builds have warning status when UI tests fail
-    # failTaskOnFailedTests: false
+    failTaskOnFailedTests: false
 
