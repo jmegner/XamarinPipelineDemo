@@ -171,7 +171,8 @@ steps:
     appFile: '$(finalApkPathSigned)'
     appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'
     devices: 'demo_device_set' # name of the device set made in AppCenter
-    frameworkOption: uitest
+    frameworkOption: 'uitest'
+    serverEndpoint: 'AppCenterConnectionXamarinPipelineDemoReadOnly'
     uiTestBuildDirectory: '$(uiTestAssemblyDir)'
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
 
