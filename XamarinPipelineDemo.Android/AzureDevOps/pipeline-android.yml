@@ -196,7 +196,7 @@ steps:
     $ANDROID_HOME/tools/bin/sdkmanager --list
     echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-30;google_apis;x86'
   displayName: 'install Android image'
-  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
 
 - bash: |
     set -o xtrace
@@ -204,18 +204,18 @@ steps:
     echo "no" | $ANDROID_HOME/tools/bin/avdmanager create avd -n uitest_android_emulator -k 'system-images;android-30;google_apis;x86' --force
     $(emulator) -list-avds
   displayName: 'create AVD'
-  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
 
 - bash: |
     set -o xtrace
     $(adb) devices
     nohup $(emulator) -avd uitest_android_emulator -no-snapshot -no-boot-anim -gpu auto -qemu > /dev/null 2>&1 &
   displayName: 'start Android emulator'
-  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
+  condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
 
 - task: MSBuild@1
   displayName: 'build ui tests'
-  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
   inputs:
     solution: '**/*UITest*.csproj'
     configuration: '$(buildConfiguration)'
@@ -225,7 +225,7 @@ steps:
     $(adb) wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done; input keyevent 82'
     $(adb) devices
   displayName: 'wait for Android emulator'
-  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
   timeoutInMinutes: 5
 
 # have to run nunit3-console directly; as of 2020-12-17, even though "dotnet
@@ -237,20 +237,20 @@ steps:
     $testAssemblies = Get-Item "$(uiTestDir)/bin/$(buildConfiguration)/XamarinPipelineDemo.UITest*.dll"
     nunit3-console $testAssemblies --output="$(uiTestLogPath)" --result="$(uiTestResultPath)"
   displayName: 'run ui tests'
-  condition: eq(succeeded(), variables.wantEmulatorUiTests, true)
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
   continueOnError: true
   timeoutInMinutes: 120
 
 - task: PublishBuildArtifacts@1
   displayName: 'publish ui test log artifact'
-  condition: eq(succeededOrFailed(), variables.wantEmulatorUiTests, true)
+  condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
   continueOnError: true
   inputs:
    artifactName: 'UI test log'
    pathToPublish: '$(uiTestLogPath)'
 
 - task: PublishTestResults@2
-  condition: eq(succeededOrFailed(), variables.wantEmulatorUiTests, true)
+  condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
   inputs:
     testRunTitle: 'Android UI Test Run'
     testResultsFormat: 'NUnit'
@@ -264,7 +264,7 @@ steps:
 - task: AppCenterTest@1
   displayName: '2nd AppCenterTest after msbuild'
   continueOnError: true
-  condition: eq(succeededOrFailed(), variables.wantAppCenter, true)
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenter, true))
   inputs:
     appFile: '$(finalApkPathSigned)'
     frameworkOption: uitest
