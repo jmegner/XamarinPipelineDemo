@@ -177,12 +177,14 @@ steps:
     #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
 
 - pwsh: |
-    Write-Output JME examining "$(uiTestDir)"
+    Write-Output 'JME examining "$(uiTestDir)"'
     Get-ChildItem -Recurse "$(uiTestDir)"
-    Write-Output JME looking for *nunit*.dll
+    Write-Output 'JME examining "$(outputDir)"'
+    Get-ChildItem -Recurse "$(outputDir)"
+    Write-Output 'JME looking for *nunit*.dll'
     Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
   displayName: 'troubleshoot AppCenter error'
-  condition: eq(variables.wantAppCenter, true)
+  condition: always()
 
 ################################################################################
 # emulator UI tests
@@ -273,9 +275,11 @@ steps:
     #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
 
 - pwsh: |
-    Write-Output JME examining "$(uiTestDir)"
+    Write-Output 'JME examining "$(uiTestDir)"'
     Get-ChildItem -Recurse "$(uiTestDir)"
-    Write-Output JME looking for *nunit*.dll
+    Write-Output 'JME examining "$(outputDir)"'
+    Get-ChildItem -Recurse "$(outputDir)"
+    Write-Output 'JME looking for *nunit*.dll'
     Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
   displayName: 'troubleshoot AppCenter error'
   condition: always()
