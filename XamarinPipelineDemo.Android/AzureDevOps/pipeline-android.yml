@@ -50,6 +50,9 @@ variables:
   - name: uiTestDir
     value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.UITest'
 
+  - name: uiTestAssemblyDir
+    value: '$(uiTestDir)/bin/$(buildConfiguration)'
+
   - name: uiTestResultPath
     value: '$(Build.ArtifactStagingDirectory)/uitest_result.xml'
 
@@ -168,8 +171,8 @@ steps:
   inputs:
     appFile: '$(finalApkPathSigned)'
     frameworkOption: uitest
-    uiTestBuildDirectory: '$(uiTestDir)'
-    uiTestToolsDirectory: '$(uiTestToolsDir)'
+    uiTestBuildDirectory: '$(uiTestAssemblyDir)'
+    uiTestToolsDirectory: '$(uiTestAssemblyDir)'
     # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
     # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
     #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
@@ -268,8 +271,8 @@ steps:
   inputs:
     appFile: '$(finalApkPathSigned)'
     frameworkOption: uitest
-    uiTestBuildDirectory: '$(uiTestDir)'
-    uiTestToolsDirectory: '$(uiTestToolsDir)'
+    uiTestBuildDirectory: '$(uiTestAssemblyDir)'
+    uiTestToolsDirectory: '$(uiTestAssemblyDir)'
     # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
     # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
     #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
