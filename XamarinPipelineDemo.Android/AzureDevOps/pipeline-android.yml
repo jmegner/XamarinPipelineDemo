@@ -90,10 +90,6 @@ steps:
   displayName: 'nuget-restore solution'
   inputs:
     restoreSolution: '$(solution)'
-    # Xamarin.UITest nuget packages sometimes go to global nuget cache but we need
-    # a known folder for Xamarin.UTTest's test-cloud.exe for AppCenterTest
-    # https://github.com/microsoft/azure-pipelines-tasks/issues/6868#issuecomment-547565284
-    restoreDirectory: '$(nugetPackageDir)'
 
 - task: PowerShell@2
   displayName: 'Set build-based Android app version'
@@ -147,9 +143,18 @@ steps:
     configuration: '$(buildConfiguration)'
 
 ################################################################################
+# UI tests, preparatory steps common to AppCenter and emulator
+
+- task: MSBuild@1
+  displayName: 'build ui tests'
+  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  inputs:
+    solution: '**/*UITest*.csproj'
+    configuration: '$(buildConfiguration)'
+
+################################################################################
 # AppCenter UI tests
 #
-# THESE STEPS ARE NOT FULLY VERIFIED
 
 # default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
 # https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
@@ -159,23 +164,15 @@ steps:
   inputs:
     version: 10.15.1
 
-- pwsh: |
-    $uiTestToolsDir = (Get-ChildItem "$(nugetPackageDir)/Xamarin.UITest/*/tools")[0].FullName
-    Write-Output "##vso[task.setvariable variable=uiTestToolsDir]$uiTestToolsDir"
-  displayName: 'find Xamarin.UITest tools directory'
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
-
 - task: AppCenterTest@1
   condition: and(succeeded(), eq(variables.wantAppCenter, true))
   continueOnError: true
   inputs:
     appFile: '$(finalApkPathSigned)'
+    appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'
     frameworkOption: uitest
     uiTestBuildDirectory: '$(uiTestAssemblyDir)'
-    uiTestToolsDirectory: '$(uiTestAssemblyDir)'
-    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
-    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
-    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
+    uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
 
 - pwsh: |
     Write-Output 'JME examining "$(uiTestDir)"'
@@ -215,13 +212,6 @@ steps:
     nohup $(emulator) -avd uitest_android_emulator -no-snapshot -no-boot-anim -gpu auto -qemu > /dev/null 2>&1 &
   displayName: 'start Android emulator'
   condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
-
-- task: MSBuild@1
-  displayName: 'build ui tests'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
-  inputs:
-    solution: '**/*UITest*.csproj'
-    configuration: '$(buildConfiguration)'
 
 - bash: |
     set -o xtrace
@@ -263,26 +253,3 @@ steps:
     # tests may also fail due to pool agent problems;
     # using the following line still makes builds have warning status when UI tests fail
     failTaskOnFailedTests: false
-
-- task: AppCenterTest@1
-  displayName: '2nd AppCenterTest after msbuild'
-  continueOnError: true
-  condition: and(succeededOrFailed(), eq(variables.wantAppCenter, true))
-  inputs:
-    appFile: '$(finalApkPathSigned)'
-    frameworkOption: uitest
-    uiTestBuildDirectory: '$(uiTestAssemblyDir)'
-    uiTestToolsDirectory: '$(uiTestAssemblyDir)'
-    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
-    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
-    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
-
-- pwsh: |
-    Write-Output 'JME examining "$(uiTestDir)"'
-    Get-ChildItem -Recurse "$(uiTestDir)"
-    Write-Output 'JME examining "$(outputDir)"'
-    Get-ChildItem -Recurse "$(outputDir)"
-    Write-Output 'JME looking for *nunit*.dll'
-    Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
-  displayName: '2nd troubleshoot AppCenter error'
-  condition: succeededOrFailed()
