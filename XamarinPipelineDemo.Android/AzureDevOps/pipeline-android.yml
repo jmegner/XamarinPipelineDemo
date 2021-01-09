@@ -65,7 +65,7 @@ variables:
   - name: emulator
     value: '$ANDROID_HOME/emulator/emulator'
 
-  - name: wantAppCenterTests
+  - name: wantAppCenterUiTests
     value: true
 
   - name: wantEmulatorUiTests
@@ -151,8 +151,10 @@ steps:
     and(
       succeeded(),
       or(
-        eq(variables.wantAppCenterTests, true),
-        eq(variables.wantEmulatorUiTests, true))
+        eq(variables.wantAppCenterUiTests, true),
+        eq(variables.wantEmulatorUiTests, true)
+      )
+    )
   inputs:
     solution: '**/*UITest*.csproj'
     configuration: '$(buildConfiguration)'
@@ -164,12 +166,12 @@ steps:
 # https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
 - task: UseNode@1
   displayName: 'Use Node 10.15.1'
-  condition: and(succeeded(), eq(variables.wantAppCenterTests, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
   inputs:
     version: 10.15.1
 
 - task: AppCenterTest@1
-  condition: and(succeeded(), eq(variables.wantAppCenterTests, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
   continueOnError: true
   inputs:
     appFile: '$(finalApkPathSigned)'
