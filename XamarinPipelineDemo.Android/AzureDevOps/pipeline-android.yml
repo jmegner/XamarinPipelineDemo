@@ -65,6 +65,9 @@ variables:
   - name: emulator
     value: '$ANDROID_HOME/emulator/emulator'
 
+  - name: appCenterOutputDir
+    value: '$(Build.ArtifactStagingDirectory)/AppCenterTest'
+
   - name: wantAppCenterUiTests
     value: true
 
@@ -176,11 +179,28 @@ steps:
   inputs:
     appFile: '$(finalApkPathSigned)'
     appSlug: 'JacobEgnerDemos/XamarinPipelineDemo' # orgname or username, then '/', then app name
+    artifactsDirectory: '$(appCenterOutputDir)'
     devices: 'JacobEgnerDemos/demo_device_set' # uses same orgname or username, then '/', then device set name
     frameworkOption: 'uitest'
     serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
     uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
+
+- pwsh: Get-ChildItem -Recurse "$(Build.ArtifactStagingDirectory)/AppCenterTest"
+  displayName: 'look at AppCenterTest file outputs'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+
+- task: PublishTestResults@2
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+  inputs:
+    testRunTitle: 'Android App Center UI Test Run'
+    testResultsFormat: 'NUnit'
+    testResultsFiles: '$(uiTestResultPath)'
+    # Android tests may randomly fail because of the System UI not responding (if you're using Prism);
+    # see https://github.com/PrismLibrary/Prism/issues/2099 ;
+    # tests may also fail due to pool agent problems;
+    # using the following line still makes builds have warning status when UI tests fail
+    failTaskOnFailedTests: false
 
 ################################################################################
 # emulator UI tests
@@ -243,7 +263,7 @@ steps:
 - task: PublishTestResults@2
   condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
   inputs:
-    testRunTitle: 'Android UI Test Run'
+    testRunTitle: 'Android Emulator UI Test Run'
     testResultsFormat: 'NUnit'
     testResultsFiles: '$(uiTestResultPath)'
     # Android tests may randomly fail because of the System UI not responding (if you're using Prism);
