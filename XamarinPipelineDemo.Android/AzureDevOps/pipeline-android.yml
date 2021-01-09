@@ -186,21 +186,12 @@ steps:
     uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
 
-- pwsh: Get-ChildItem -Recurse "$(Build.ArtifactStagingDirectory)/AppCenterTest"
+- pwsh: |
+    Get-ChildItem -Recurse "*.xml"
+    Get-ChildItem -Recurse "$(appCenterOutputDir)"
+    Get-Content "$(appCenterOutputDir)/manifest.json"
   displayName: 'look at AppCenterTest file outputs'
   condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
-
-- task: PublishTestResults@2
-  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
-  inputs:
-    testRunTitle: 'Android App Center UI Test Run'
-    testResultsFormat: 'NUnit'
-    testResultsFiles: '$(uiTestResultPath)'
-    # Android tests may randomly fail because of the System UI not responding (if you're using Prism);
-    # see https://github.com/PrismLibrary/Prism/issues/2099 ;
-    # tests may also fail due to pool agent problems;
-    # using the following line still makes builds have warning status when UI tests fail
-    failTaskOnFailedTests: false
 
 ################################################################################
 # emulator UI tests

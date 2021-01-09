@@ -814,7 +814,10 @@ but `username` can also be your organization name and the URL might have format
 `https://appcenter.ms/orgs/{orgname}/apps/{app_identifier}`.
 My App Center app URL is
 `https://appcenter.ms/orgs/JacobEgnerDemos/apps/XamarinPipelineDemo`,
-so I used `appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'`.
+so I used `appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'`. I've personally
+tried this, and later I
+[this MS Docs page](https://docs.microsoft.com/en-us/appcenter/api-docs/#find-owner_name-and-app_name-from-an-app-center-url)
+that agrees.
 
 
 TODO: devices
