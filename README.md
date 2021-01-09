@@ -827,8 +827,12 @@ an `appcenter` command with an argument-value pair of something like `--devices
 The
 [Starting A Test Run article](https://docs.microsoft.com/en-us/appcenter/test-cloud/starting-a-test-run)
 says that for the `appcenter` cli, the `devices` argument can be the
-hexadecimal value or "the ID ... generated from the device set name". Does that
-mean you can just use the device set name? TODO
+hexadecimal value or "the ID ... generated from the device set name". I had to
+experiment to figure out that the ID is not just the device set name. The
+device set ID is like the app slug: username or orgname, then '/', then device
+set name. If you want to check against a URL, you can; this is the URL for my
+chosen device set:
+`https://appcenter.ms/orgs/JacobEgnerDemos/apps/XamarinPipelineDemo/test/device-sets/demo-device-set`.
 
 TODO: serverEndpoint
 `serverEndpoint` input is required when using the default `credentialsOption`

@@ -65,7 +65,7 @@ variables:
   - name: emulator
     value: '$ANDROID_HOME/emulator/emulator'
 
-  - name: wantAppCenter
+  - name: wantAppCenterTests
     value: true
 
   - name: wantEmulatorUiTests
@@ -147,44 +147,38 @@ steps:
 
 - task: MSBuild@1
   displayName: 'build ui tests'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
+  condition: >
+    and(
+      succeeded(),
+      or(
+        eq(variables.wantAppCenterTests, true),
+        eq(variables.wantEmulatorUiTests, true))
   inputs:
     solution: '**/*UITest*.csproj'
     configuration: '$(buildConfiguration)'
 
 ################################################################################
 # AppCenter UI tests
-#
 
 # default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
 # https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
 - task: UseNode@1
   displayName: 'Use Node 10.15.1'
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterTests, true))
   inputs:
     version: 10.15.1
 
 - task: AppCenterTest@1
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterTests, true))
   continueOnError: true
   inputs:
     appFile: '$(finalApkPathSigned)'
-    appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'
-    devices: 'demo_device_set' # name of the device set made in AppCenter
+    appSlug: 'JacobEgnerDemos/XamarinPipelineDemo' # orgname or username, then '/', then app name
+    devices: 'JacobEgnerDemos/demo_device_set' # uses same orgname or username, then '/', then device set name
     frameworkOption: 'uitest'
-    serverEndpoint: 'AppCenterConnectionUserBasedFullAccess'
-    uiTestBuildDirectory: '$(uiTestAssemblyDir)'
+    serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
+    uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
-
-- pwsh: |
-    Write-Output 'JME examining "$(uiTestDir)"'
-    Get-ChildItem -Recurse "$(uiTestDir)"
-    Write-Output 'JME examining "$(outputDir)"'
-    Get-ChildItem -Recurse "$(outputDir)"
-    Write-Output 'JME looking for *nunit*.dll'
-    Get-ChildItem -Recurse -Filter "*nunit*.dll" -Path "$(uiTestDir)", "$(uiTestToolsDir)", "$(nugetPackageDir)" 
-  displayName: 'troubleshoot AppCenter error'
-  condition: succeededOrFailed()
 
 ################################################################################
 # emulator UI tests
