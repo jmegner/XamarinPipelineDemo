@@ -777,114 +777,10 @@ is not available on MacOS agents.  If you need an alternative to
 
 
 ## Run App Center UI Tests ##
-
-/////////////////////////////////////////////////////////////////////////
-
-TODO: note default of `artifactsDirectory: '$(Build.ArtifactStagingDirectory)/AppCenterTest'`
-
-TODO: nunit.framework.dll
-following error is because `AppCenterTest` task is looking for
-`nunit.framework.dll` in the assembly directory, and isn't finding it.  It's
-possible you just haven't built the UITest project yet, or didn't assign the
-`uiTestBuildDirectory` input correctly.  Even though the input name suggests a
-build directory, the reference page describes the input as "Path to directory
-with built test assemblies".
-
-```
-Unable to find the nunit.framework.dll in the assembly directory. In Xamarin Studio you may have to right-click on the nunit.framework reference and choose Local Copy for it to be included in the output directory.
-
-Preparing tests... failed.
-Error: Cannot prepare UI Test artifacts using command: mono /Users/runner/work/1/s/packages/xamarin.uitest/3.0.12/tools/test-cloud.exe prepare "/Users/runner/work/1/a/XamarinPipelineDemo_20210108.2_1_Signed.apk" --assembly-dir "/Users/runner/work/1/s/XamarinPipelineDemo.UITest" --artifacts-dir "/Users/runner/work/1/a/AppCenterTest".
-
-The NUnit library was not found, please try again. If you can't work out how to fix this issue, please contact support.
-```
-
-TODO: uiTestToolsDirectory
-Yes, you need to explicitly put the assembly dir (containing `test-cloud.exe`)
-as `uiTestToolsDirectory` input.
-
-
-TODO: appSlug
-You have to supply an `appSlug` input, or you'll get the error message
-`Error: Input required: appSlug`. The reference doc for that input says you
-need to specify it with format `{username}/{app_identifier}` and you can learn the
-values by looking at the URL of your app page in App Center:
-`https://appcenter.ms/users/{username}/apps/{app_identifier}`
-but `username` can also be your organization name and the URL might have format
-`https://appcenter.ms/orgs/{orgname}/apps/{app_identifier}`.
-My App Center app URL is
-`https://appcenter.ms/orgs/JacobEgnerDemos/apps/XamarinPipelineDemo`,
-so I used `appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'`. I've personally
-tried this, and later I
-[this MS Docs page](https://docs.microsoft.com/en-us/appcenter/api-docs/#find-owner_name-and-app_name-from-an-app-center-url)
-that agrees.
-
-
-TODO: devices
-For the `devices` input, the `AppCenterTest` task reference is not helpful. The
-[Starting A Test Run article](https://docs.microsoft.com/en-us/appcenter/test-cloud/starting-a-test-run)
-says that for the `appcenter` cli, the `devices` argument can be the
-hexadecimal value or "the ID ... generated from the device set name". I had to
-experiment to figure out that the ID is not just the device set name. The
-device set ID is like the app slug: username or orgname, then '/', then device
-set name. If you want to check against a URL, be careful of some name
-transformations.  My device set name is `demove_device_set` but the URL
-replaces the underscores with hyphens:
-`https://appcenter.ms/orgs/JacobEgnerDemos/apps/XamarinPipelineDemo/test/device-sets/demo-device-set`.
-
-I recommend the named device set.  In App Center, under `Test` and `Devices sets`,
-create a device set and name it.  You can refer to the 
-
-You can determine the proper hexadecimal number by creating a test run in App Center,
-choosing a set of devices, and on the "submit" step, you'll be shown a command
-to "upload and schedule tests", and that command will contain something like
-`--devices c2e61997`.
-
-
-TODO: serverEndpoint
-`serverEndpoint` input is required when using the default `credentialsOption`
-value of `serviceEndpoint`. The `serverEndpoint` input needs to specify the
-"service connection for AppCenter".  Steps to create and use a service
-connection...
-* In App Center,
-  [create a *full-access* App Center *user* API token](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-user-api-token).
-* In Azure DevOps, go to your project settings, then pipelines section, then service connections entry.
-  * Create a new service connection.
-  * For service connection type, scroll down to the bottom and select "Visual
-    Studio App Center".
-  * Supply the API token and name the service connection (ex:
-    `AppCenterConnectionXamarinPipelineDemoFullAccess`)
-* You'll either preemptively grant permission to all pipelines to use this
-  service connection, or you'll have to click some stuff to approve the first
-  time that a pipeline uses the service connection.
-* In pipeline definition, use the name of the service connection for your
-  `serverEndpoint` input.
-
-A read-only token will give you an `Error: forbidden` error.  You
-need a full-access token.
-
-It would be nice to make an app token (which only has access to
-one App Center app), but as of 2021-Jan, but app tokens do not work. You'll get a 
-`Error: empty email address` error with an app token. You need to use a user
-token, which is associated with a user and has access to everything that user
-has access to.
-[This stackoverflow discussion](https://stackoverflow.com/questions/64008037/error-empty-email-address-doing-postbuild-in-appcenter)
-says that Microsoft's official advice as of 2020-Oct is:
-
-> For test you need to use the user level token only, app level token was not
-supported. Our test team was already working on this but currently there is no
-ETA on it.
-
-Once they fix the app token issue, you can follow
-[these instructions](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-app-api-token).
-to make an App Center app API token.
-
-
-/////////////////////////////////////////////////////////////////////////
-
 The interplay between Azure DevOps and App Center is confusing, and I still
 don't fully understand it, but I will go over how I got my Azure DevOps pipeline
-to execute UI tests on real devices in App Center.
+to execute UI tests on real devices in App Center using the
+[`AppCenterTest` task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/app-center-test?view=azure-devops).
 
 Here are the relevant pipeline steps...
 ```
@@ -948,7 +844,15 @@ task doc, but looking at the source code of these tasks
 [`nodetool.ts`](https://github.com/microsoft/azure-pipelines-tasks/blob/master/Tasks/NodeToolV0/nodetool.ts))
 and comments, they don't seem to do the same thing.
 
-If you get a `test-cloud.exe` related error like this...
+The
+[`AppCenterTest` task reference](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/app-center-test?view=azure-devops)
+suggests that the `prepareTests` input defaults to true and therefore default
+behavior is to build the UI test project, but I never got that to work and had
+to use a separate `MSBuild` task.  If the UI test project is not built, I think
+the first error you'll get is about not finding `test-cloud.exe`.
+
+If you are successfully building the UI test project and still get a
+`test-cloud.exe` related error like this...
 ```
 Preparing tests... failed.
 Error: Cannot find test-cloud.exe, which is required to prepare UI tests.
@@ -957,28 +861,117 @@ Please use option "--uitest-tools-dir" to manually specify location of this tool
 Minimum required version is "2.2.0".
 ##[error]Error: D:\a\_tasks\AppCenterTest_ad5cd22a-be4e-48bb-adce-181a32432da5\1.152.3\node_modules\.bin\appcenter.cmd failed with return code: 3
 ```
-...then you need to be sure that your
-[`AppCenterTest` task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/app-center-test?view=azure-devops)'s
-`uiTestToolsDirectory` input is set to the `tools` folder underneath the
-[Xamarin.UITest package](https://www.nuget.org/packages/Xamarin.UITest/)
-folder.  The `tools` folder contains `test-cloud.exe`.
+...then you need to be sure that your AppCenterTest` task's
+`uiTestToolsDirectory` input is set to a folder that contains `test-cloud.exe`.
+There are a few existing discussions (like
+[this azure-pipelines-tasks issue discussion](https://github.com/microsoft/azure-pipelines-tasks/issues/6868))
+where people suggest pointing to Xamarin.UITest's nuget package folder,
+but you don't need to do that.  When you build your Xamarin.UITest project,
+`test-cloud.exe` is put into the output folder alongside the generated dlls.
+So, I set `uiTestToolsDirectory` to that output folder.
 
-Unfortunately, there's a few places that Xamarin.UITest's nuget package folder
-could go, so I altered my `NuGetCommand` step to use `nugetPackageDir` as the
-`restoreDirectory`. There's also the unfortunate complication that the `tools`
-folder will be underneath a different version folder each time you update yur
-Xamarin.UITest package, so I used an inline PowerShell script to find the exact
-folder and set the `uiTestToolsDir` variable.  That `uiTestToolsDir` variable
-is used for the `uiTestToolsDirectory` task input.  The PowerShell script would
-not be necessary if the `uiTestToolsDirectory` supported path wildcards; one of
-the reasons that getting comfortable with PowerShell is very helpful for
-working with pipelines.
+Likewise, you might get an error complaining about a missing `nunit.framework.dll`...
+```
+Unable to find the nunit.framework.dll in the assembly directory. In Xamarin Studio you may have to right-click on the nunit.framework reference and choose Local Copy for it to be included in the output directory.
 
-Note:
-[this azure-pipelines-tasks issue discussion](https://github.com/microsoft/azure-pipelines-tasks/issues/6868)
-is where I learned about the nature of the `test-cloud.exe` problem and some
-workarounds.  The PowerShell script to solve version folder problem is my own
-invention.
+Preparing tests... failed.
+Error: Cannot prepare UI Test artifacts using command: mono /Users/runner/work/1/s/packages/xamarin.uitest/3.0.12/tools/test-cloud.exe prepare "/Users/runner/work/1/a/XamarinPipelineDemo_20210108.2_1_Signed.apk" --assembly-dir "/Users/runner/work/1/s/XamarinPipelineDemo.UITest" --artifacts-dir "/Users/runner/work/1/a/AppCenterTest".
+
+The NUnit library was not found, please try again. If you can't work out how to fix this issue, please contact support.
+```
+...because `AppCenterTest` task is looking for
+`nunit.framework.dll` in the assembly directory, and isn't finding it.  It's
+possible you just haven't built the UITest project yet, or didn't assign the
+`uiTestBuildDirectory` input correctly.  Even though the input name suggests a
+build directory, the reference page describes the input as "Path to directory
+with built test assemblies".  So, I set both `uiTestToolsDirectory` and
+`uiTestBuildDirectory` to my UI test project's output directory where the dlls
+are generated.
+
+You have to supply an `appSlug` input, or you'll get the error message
+`Error: Input required: appSlug`. The reference doc for that input says you
+need to specify it with format `{username}/{app_identifier}` and you can learn the
+values by looking at the URL of your app page in App Center:
+`https://appcenter.ms/users/{username}/apps/{app_identifier}`
+but `username` can also be your organization name and the URL might have format
+`https://appcenter.ms/orgs/{orgname}/apps/{app_identifier}`.
+My App Center app URL is
+`https://appcenter.ms/orgs/JacobEgnerDemos/apps/XamarinPipelineDemo`,
+so I used `appSlug: 'JacobEgnerDemos/XamarinPipelineDemo'`. I've personally
+tried this, and later I found
+[this MS Docs page](https://docs.microsoft.com/en-us/appcenter/api-docs/#find-owner_name-and-app_name-from-an-app-center-url)
+that agrees.
+
+For the `devices` input, the `AppCenterTest` task reference is not helpful. The
+[Starting A Test Run article](https://docs.microsoft.com/en-us/appcenter/test-cloud/starting-a-test-run)
+says that for the `appcenter` cli, the `devices` argument can be the
+hexadecimal value or "the ID ... generated from the device set name". I had to
+experiment to figure out that the ID is not just the device set name. The
+device set ID is like the app slug: username or orgname, then '/', then device
+set name. If you want to check against a URL, be careful of some name
+transformations.  My device set name is `demove_device_set` but the URL
+replaces the underscores with hyphens:
+`https://appcenter.ms/orgs/JacobEgnerDemos/apps/XamarinPipelineDemo/test/device-sets/demo-device-set`.
+
+I recommend the named device set.  In App Center, under `Test` and `Devices sets`,
+create a device set and name it.
+
+If you don't want to use a named device set, you can determine the proper
+hexadecimal number by creating a test run in App Center, choosing a set of
+devices, and on the "submit" step, you'll be shown a command to "upload and
+schedule tests", and that command will contain something like `--devices
+c2e61997`. You don't actually have to submit the test run; you can just abandon
+the creation of the test run once you see the hexadecimal number.
+
+The `serverEndpoint` input is required when using the default
+`credentialsOption` value of `serviceEndpoint`. The `serverEndpoint` input
+needs to specify the "service connection for AppCenter".  Steps to create and
+use a service connection...
+* In App Center,
+  [create a *full-access* App Center *user* API token](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-user-api-token).
+* In Azure DevOps, go to your project settings, then pipelines section, then service connections entry.
+  * Create a new service connection.
+  * For service connection type, scroll down to the bottom and select "Visual
+    Studio App Center".
+  * Supply the API token and name the service connection (ex:
+    `AppCenterConnectionXamarinPipelineDemoFullAccess`)
+* You'll either preemptively grant permission to all pipelines to use this
+  service connection, or you'll have to click some stuff to approve the first
+  time that a pipeline uses the service connection.
+* In pipeline definition, use the name of the service connection for your
+  `serverEndpoint` input.
+
+A read-only token will give you an `Error: forbidden` error.  You
+need a full-access token.
+
+It would be nice to make an app token (which only has access to
+one App Center app), but as of 2021-Jan, app tokens do not work. You'll get a 
+`Error: empty email address` error if using an app token. You need to use a user
+token, which is associated with a user and has access to everything that user
+has access to.
+[This stackoverflow discussion](https://stackoverflow.com/questions/64008037/error-empty-email-address-doing-postbuild-in-appcenter)
+says that Microsoft's official advice as of 2020-Oct is:
+
+> For test you need to use the user level token only, app level token was not
+supported. Our test team was already working on this but currently there is no
+ETA on it.
+
+Once they fix the app token issue, you can follow
+[these instructions](https://docs.microsoft.com/en-us/appcenter/api-docs/#creating-an-app-center-app-api-token).
+to make an App Center app API token.
+
+The `artifactsDirectory` input for `AppCenterTest` task defaults to 
+`$(Build.ArtifactStagingDirectory)/AppCenterTest`.  With normal inputs, the
+following files are output to that folder:
+* apps (folder)
+  * XamarainPipelineDemo_20201231.1_9.apk (apk file put on devices to test)
+* AndroidTestServer.apk
+* manifest.json (mentions found dlls, found test methods, excluded tests, does
+  not contain test results)
+* the rest of the files are all the dlls from the `uiTestBuildDirectory`
+  * nunit*.dll (a bunch of NUnit dlls for running the tests)
+  * Xamarin.UITest.dll
+  * XamarinPipelineDemo.UITest.dll (the dll made from the ui test project)
 
 ## Set Up And Start Android Emulator ##
 For setting up and starting the Android emulator, there are some good examples out there.

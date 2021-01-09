@@ -179,9 +179,9 @@ steps:
   inputs:
     appFile: '$(finalApkPathSigned)'
     appSlug: 'JacobEgnerDemos/XamarinPipelineDemo' # orgname or username, then '/', then app name
-    artifactsDirectory: '$(appCenterOutputDir)'
     devices: 'JacobEgnerDemos/demo_device_set' # uses same orgname or username, then '/', then device set name
     frameworkOption: 'uitest'
+    prepareTests: true
     serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
     uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
