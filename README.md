@@ -882,47 +882,52 @@ to make an App Center app API token.
 
 /////////////////////////////////////////////////////////////////////////
 
-This demo isn't really about App Center tests, but I'd love to go over some
-workarounds/solutions to some of the problems you might have, possibly saving
-you a lot of time.
+The interplay between Azure DevOps and App Center is confusing, and I still
+don't fully understand it, but I will go over how I got my Azure DevOps pipeline
+to execute UI tests on real devices in App Center.
 
 Here are the relevant pipeline steps...
 ```
-- task: NuGetCommand@2
-  displayName: 'nuget-restore solution'
-  inputs:
-    restoreSolution: '$(solution)'
-    # Xamarin.UITest nuget packages sometimes go to global nuget cache but we need
-    # a known folder for Xamarin.UTTest's test-cloud.exe for AppCenterTest
-    # https://github.com/microsoft/azure-pipelines-tasks/issues/6868#issuecomment-547565284
-    restoreDirectory: '$(nugetPackageDir)'
+################################################################################
+# UI tests, preparatory steps common to AppCenter and emulator
 
-# ... lots of steps omitted here ...
+- task: MSBuild@1
+  displayName: 'build ui tests'
+  condition: >
+    and(
+      succeeded(),
+      or(
+        eq(variables.wantAppCenterUiTests, true),
+        eq(variables.wantEmulatorUiTests, true)
+      )
+    )
+  inputs:
+    solution: '**/*UITest*.csproj'
+    configuration: '$(buildConfiguration)'
+
+################################################################################
+# AppCenter UI tests
 
 # default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
 # https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
 - task: UseNode@1
   displayName: 'Use Node 10.15.1'
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
   inputs:
     version: 10.15.1
 
-- pwsh: |
-    $uiTestToolsDir = (Get-ChildItem "$(nugetPackageDir)/Xamarin.UITest/*/tools")[0].FullName
-    Write-Output "##vso[task.setvariable variable=uiTestToolsDir]$uiTestToolsDir"
-  displayName: 'find Xamarin.UITest tools directory'
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
-
 - task: AppCenterTest@1
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
+  continueOnError: true
   inputs:
     appFile: '$(finalApkPathSigned)'
-    frameworkOption: uitest
-    uiTestBuildDirectory: '$(uiTestDir)'
-    uiTestToolsDirectory: '$(uiTestToolsDir)'
-    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
-    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
-    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
+    appSlug: 'JacobEgnerDemos/XamarinPipelineDemo' # orgname or username, then '/', then app name
+    artifactsDirectory: '$(appCenterOutputDir)'
+    devices: 'JacobEgnerDemos/demo_device_set' # uses same orgname or username, then '/', then device set name
+    frameworkOption: 'uitest'
+    serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
+    uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
+    uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
 ```
 
 If you get errors like "Error: Command test prepare uitest ... is invalid",

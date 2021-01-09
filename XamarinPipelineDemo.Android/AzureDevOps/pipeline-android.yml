@@ -72,7 +72,7 @@ variables:
     value: true
 
   - name: wantEmulatorUiTests
-    value: true
+    value: false
 
   # set this to false when things are working and you don't need to debug
   # pipeline problems
@@ -148,19 +148,19 @@ steps:
 ################################################################################
 # UI tests, preparatory steps common to AppCenter and emulator
 
-- task: MSBuild@1
-  displayName: 'build ui tests'
-  condition: >
-    and(
-      succeeded(),
-      or(
-        eq(variables.wantAppCenterUiTests, true),
-        eq(variables.wantEmulatorUiTests, true)
-      )
-    )
-  inputs:
-    solution: '**/*UITest*.csproj'
-    configuration: '$(buildConfiguration)'
+#- task: MSBuild@1
+#  displayName: 'build ui tests'
+#  condition: >
+#    and(
+#      succeeded(),
+#      or(
+#        eq(variables.wantAppCenterUiTests, true),
+#        eq(variables.wantEmulatorUiTests, true)
+#      )
+#    )
+#  inputs:
+#    solution: '**/*UITest*.csproj'
+#    configuration: '$(buildConfiguration)'
 
 ################################################################################
 # AppCenter UI tests
@@ -185,13 +185,6 @@ steps:
     serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
     uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
-
-- pwsh: |
-    Get-ChildItem -Recurse "*.xml"
-    Get-ChildItem -Recurse "$(appCenterOutputDir)"
-    Get-Content "$(appCenterOutputDir)/manifest.json"
-  displayName: 'look at AppCenterTest file outputs'
-  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
 
 ################################################################################
 # emulator UI tests
