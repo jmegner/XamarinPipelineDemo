@@ -148,19 +148,19 @@ steps:
 ################################################################################
 # UI tests, preparatory steps common to AppCenter and emulator
 
-#- task: MSBuild@1
-#  displayName: 'build ui tests'
-#  condition: >
-#    and(
-#      succeeded(),
-#      or(
-#        eq(variables.wantAppCenterUiTests, true),
-#        eq(variables.wantEmulatorUiTests, true)
-#      )
-#    )
-#  inputs:
-#    solution: '**/*UITest*.csproj'
-#    configuration: '$(buildConfiguration)'
+- task: MSBuild@1
+  displayName: 'build ui tests'
+  condition: >
+    and(
+      succeeded(),
+      or(
+        eq(variables.wantAppCenterUiTests, true),
+        eq(variables.wantEmulatorUiTests, true)
+      )
+    )
+  inputs:
+    solution: '**/*UITest*.csproj'
+    configuration: '$(buildConfiguration)'
 
 ################################################################################
 # AppCenter UI tests
