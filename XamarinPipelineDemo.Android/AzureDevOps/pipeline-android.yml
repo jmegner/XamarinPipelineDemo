@@ -68,6 +68,9 @@ variables:
   - name: appCenterOutputDir
     value: '$(Build.ArtifactStagingDirectory)/AppCenterTest'
 
+  - name: appCenterTestResultsDir
+    value: '$(appCenterOutputDir)/TestResults'
+
   - name: wantAppCenterUiTests
     value: true
 
@@ -189,7 +192,7 @@ steps:
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
 
 - pwsh: |
-    Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip"
+    Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip" -DestinationPath "$(appCenterTestResultsDir)"
     Get-ChildItem -Recurse "$(appCenterOutputDir)"
   displayName: 'unzip App Center test results zip'
   condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
@@ -201,7 +204,7 @@ steps:
   inputs:
     testRunTitle: 'Android App Center UI Test Run'
     testResultsFormat: 'NUnit'
-    testResultsFiles: '$(appCenterOutputDir)/nunit_xml_zip/*.xml'
+    testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
 
 ################################################################################
 # emulator UI tests
