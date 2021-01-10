@@ -182,9 +182,24 @@ steps:
     devices: 'JacobEgnerDemos/demo_device_set' # uses same orgname or username, then '/', then device set name
     frameworkOption: 'uitest'
     prepareTests: true
+    runOptions: >
+      --test-output-dir "$(appCenterOutputDir)"
     serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
     uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
+
+- pwsh: Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip"
+  displayName: 'unzip App Center test results zip'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+  continueOnError: true
+
+- task: PublishTestResults@2
+  displayName: 'publish App Center UI test results'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+  inputs:
+    testRunTitle: 'Android App Center UI Test Run'
+    testResultsFormat: 'NUnit'
+    testResultsFiles: '$(appCenterOutputDir)/nunit_xml_zip/*.xml'
 
 ################################################################################
 # emulator UI tests
