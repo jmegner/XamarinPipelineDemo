@@ -188,7 +188,9 @@ steps:
     uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
     uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
 
-- pwsh: Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip"
+- pwsh: |
+    Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip"
+    Get-ChildItem -Recurse "$(appCenterOutputDir)"
   displayName: 'unzip App Center test results zip'
   condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
   continueOnError: true
