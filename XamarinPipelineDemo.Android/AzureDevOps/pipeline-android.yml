@@ -3,7 +3,7 @@ trigger:
   #batch: true
   branches:
     include:
-    - main
+    - AppCenterExperiments
   paths:
     include:
     # common
@@ -50,6 +50,9 @@ variables:
   - name: uiTestDir
     value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.UITest'
 
+  - name: uiTestAssemblyDir
+    value: '$(uiTestDir)/bin/$(buildConfiguration)'
+
   - name: uiTestResultPath
     value: '$(Build.ArtifactStagingDirectory)/uitest_result.xml'
 
@@ -62,11 +65,17 @@ variables:
   - name: emulator
     value: '$ANDROID_HOME/emulator/emulator'
 
-  - name: wantAppCenter
-    value: false
+  - name: appCenterOutputDir
+    value: '$(Build.ArtifactStagingDirectory)/AppCenterTest'
+
+  - name: appCenterTestResultsDir
+    value: '$(appCenterOutputDir)/TestResults'
+
+  - name: wantAppCenterUiTests
+    value: true
 
   - name: wantEmulatorUiTests
-    value: true
+    value: false
 
   # set this to false when things are working and you don't need to debug
   # pipeline problems
@@ -87,10 +96,6 @@ steps:
   displayName: 'nuget-restore solution'
   inputs:
     restoreSolution: '$(solution)'
-    # Xamarin.UITest nuget packages sometimes go to global nuget cache but we need
-    # a known folder for Xamarin.UTTest's test-cloud.exe for AppCenterTest
-    # https://github.com/microsoft/azure-pipelines-tasks/issues/6868#issuecomment-547565284
-    restoreDirectory: '$(nugetPackageDir)'
 
 - task: PowerShell@2
   displayName: 'Set build-based Android app version'
@@ -144,34 +149,60 @@ steps:
     configuration: '$(buildConfiguration)'
 
 ################################################################################
+# UI tests, preparatory steps common to AppCenter and emulator
+
+- task: MSBuild@1
+  displayName: 'build ui tests'
+  condition: >
+    and(
+      succeeded(),
+      or(
+        eq(variables.wantAppCenterUiTests, true),
+        eq(variables.wantEmulatorUiTests, true)
+      )
+    )
+  inputs:
+    solution: '**/*UITest*.csproj'
+    configuration: '$(buildConfiguration)'
+
+################################################################################
 # AppCenter UI tests
-#
-# THESE STEPS ARE NOT FULLY VERIFIED
 
 # default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
 # https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
 - task: UseNode@1
   displayName: 'Use Node 10.15.1'
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
   inputs:
     version: 10.15.1
 
-- pwsh: |
-    $uiTestToolsDir = (Get-ChildItem "$(nugetPackageDir)/Xamarin.UITest/*/tools")[0].FullName
-    Write-Output "##vso[task.setvariable variable=uiTestToolsDir]$uiTestToolsDir"
-  displayName: 'find Xamarin.UITest tools directory'
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
-
 - task: AppCenterTest@1
-  condition: and(succeeded(), eq(variables.wantAppCenter, true))
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
+  continueOnError: true
   inputs:
     appFile: '$(finalApkPathSigned)'
-    frameworkOption: uitest
-    uiTestBuildDirectory: '$(uiTestDir)'
-    uiTestToolsDirectory: '$(uiTestToolsDir)'
-    # alternatively, you can skip the previous search for uiTestToolsDir, but you'll have to update
-    # the "3.0.12" below everytime you update the Xamarin.UITest nuget package
-    #uiTestToolsDirectory: '$(nugetPackageDir)/Xamarin.UITest/3.0.12/tools'
+    appSlug: 'JacobEgnerDemos/XamarinPipelineDemo' # orgname or username, then '/', then app name
+    devices: 'JacobEgnerDemos/demo_device_set' # uses same orgname or username, then '/', then device set name
+    frameworkOption: 'uitest'
+    prepareTests: true
+    runOptions: >
+      --test-output-dir "$(appCenterOutputDir)"
+    serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
+    uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
+    uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
+
+- pwsh: Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip" -DestinationPath "$(appCenterTestResultsDir)"
+  displayName: 'unzip App Center test results zip'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+  continueOnError: true
+
+- task: PublishTestResults@2
+  displayName: 'publish App Center UI test results'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+  inputs:
+    testRunTitle: 'Android App Center UI Test Run'
+    testResultsFormat: 'NUnit'
+    testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
 
 ################################################################################
 # emulator UI tests
@@ -183,11 +214,6 @@ steps:
 - bash: |
     set -o xtrace
     $ANDROID_HOME/tools/bin/sdkmanager --list
-  displayName: 'list already installed Android packages'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
-
-- bash: |
-    set -o xtrace
     echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-30;google_apis;x86'
   displayName: 'install Android image'
   condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
@@ -205,14 +231,7 @@ steps:
     $(adb) devices
     nohup $(emulator) -avd uitest_android_emulator -no-snapshot -no-boot-anim -gpu auto -qemu > /dev/null 2>&1 &
   displayName: 'start Android emulator'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
-
-- task: MSBuild@1
-  displayName: 'build ui tests'
-  condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
-  inputs:
-    solution: '**/*UITest*.csproj'
-    configuration: '$(buildConfiguration)'
+  condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
 
 - bash: |
     set -o xtrace
@@ -237,15 +256,16 @@ steps:
 
 - task: PublishBuildArtifacts@1
   displayName: 'publish ui test log artifact'
+  condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
+  continueOnError: true
   inputs:
    artifactName: 'UI test log'
    pathToPublish: '$(uiTestLogPath)'
-  continueOnError: true
 
 - task: PublishTestResults@2
-  condition: eq(variables.wantEmulatorUiTests, true)
+  condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
   inputs:
-    testRunTitle: 'Android UI Test Run'
+    testRunTitle: 'Android Emulator UI Test Run'
     testResultsFormat: 'NUnit'
     testResultsFiles: '$(uiTestResultPath)'
     # Android tests may randomly fail because of the System UI not responding (if you're using Prism);
