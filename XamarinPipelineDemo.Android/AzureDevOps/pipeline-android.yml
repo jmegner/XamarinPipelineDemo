@@ -282,7 +282,17 @@ steps:
     testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
 
 - pwsh: |
-    Get-ChildItem .\artifacts\xmls\ | %{ Write-Output "##vso[results.publish type=NUnit;mergeResults=false;runTitle=Android App Center UI Test Run $($_.BaseName);publishRunAttachments=true;resultFiles=$($_.FullName);failTaskOnFailedTests=false;testRunSystem=VSTS - PTR;]"
+    Get-ChildItem .\artifacts\xmls\ | ForEach-Object { Write-Output `
+        ( "##vso[results.publish " `
+        + "runTitle=Android App Center UI Test Run $($_.BaseName);" `
+        + "resultFiles=$($_.FullName);" `
+        + "type=NUnit;" `
+        + "mergeResults=false;" `
+        + "publishRunAttachments=true;" `
+        + "failTaskOnFailedTests=false;" `
+        + "testRunSystem=VSTS - PTR; `
+        + "]" `
+        )}
   displayName: 'complicated publish App Center UI test results with device name'
   condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
 
