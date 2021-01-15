@@ -1,9 +1,9 @@
 trigger:
-  # think about using batching if 
+  # think about using batching to cut down on overlapping runs
   #batch: true
   branches:
     include:
-    - AppCenterExperiments
+    - main
   paths:
     include:
     # common
@@ -75,7 +75,7 @@ variables:
     value: true
 
   - name: wantEmulatorUiTests
-    value: false
+    value: true
 
   # set this to false when things are working and you don't need to debug
   # pipeline problems
