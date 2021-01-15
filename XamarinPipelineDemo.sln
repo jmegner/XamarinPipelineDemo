@@ -13,7 +13,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamarinPipelineDemo.UITest"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LocalScripts", "LocalScripts", "{8FF8048C-F80E-4006-9A7A-D1B33AFDA42B}"
 	ProjectSection(SolutionItems) = preProject
-		LocalScripts\uitest_run.ps1 = LocalScripts\uitest_run.ps1
+		LocalScripts\appcenter_uitest_run.ps1 = LocalScripts\appcenter_uitest_run.ps1
+		LocalScripts\common.ps1 = LocalScripts\common.ps1
+		LocalScripts\local_uitest_run.ps1 = LocalScripts\local_uitest_run.ps1
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{0723ED59-10D3-443C-AF14-281AE07FC8AC}"

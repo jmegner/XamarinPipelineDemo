@@ -20,8 +20,11 @@ pool:
 variables:
   - group: android_demo_var_group
 
+  - name: appName
+    value: 'XamarinPipelineDemo'
+
   - name: solution
-    value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.sln'
+    value: '$(Build.SourcesDirectory)/$(appName).sln'
 
   - name: buildConfiguration
     value: 'Release'
@@ -33,7 +36,7 @@ variables:
     value: $[counter(variables['Build.DefinitionName'], 1)]
 
   - name: finalApkCommonPart
-    value: '$(Build.ArtifactStagingDirectory)/XamarinPipelineDemo_$(Build.BuildNumber)_$(pipelineBuildNumber)'
+    value: '$(Build.ArtifactStagingDirectory)/$(appName)_$(Build.BuildNumber)_$(pipelineBuildNumber)'
 
   - name: finalApkPathUnsigned
     value: '$(finalApkCommonPart)_Unsigned.apk'
@@ -41,14 +44,17 @@ variables:
   - name: finalApkPathSigned
     value: '$(finalApkCommonPart)_Signed.apk'
 
+  - name: androidDir
+    value: '$(Build.SourcesDirectory)/$(appName).Android'
+
   - name: androidPipelineDir
-    value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.Android/AzureDevOps'
+    value: '$(androidDir)/AzureDevOps'
 
   - name: nugetPackageDir
     value: '$(System.DefaultWorkingDirectory)/packages'
 
   - name: uiTestDir
-    value: '$(Build.SourcesDirectory)/XamarinPipelineDemo.UITest'
+    value: '$(Build.SourcesDirectory)/$(appName).UITest'
 
   - name: uiTestAssemblyDir
     value: '$(uiTestDir)/bin/$(buildConfiguration)'
@@ -70,6 +76,9 @@ variables:
 
   - name: appCenterTestResultsDir
     value: '$(appCenterOutputDir)/TestResults'
+
+  - name: appCenterOrgName
+    value: 'JacobEgnerDemos'
 
   - name: wantAppCenterUiTests
     value: true
@@ -102,7 +111,7 @@ steps:
   inputs:
     filePath: '$(androidPipelineDir)/AndroidSetVersion.ps1'
     arguments: >
-      -manifestPath '$(Build.SourcesDirectory)/XamarinPipelineDemo.Android/Properties/AndroidManifest.xml'
+      -manifestPath '$(androidDir)/Properties/AndroidManifest.xml'
       -versionCodeBase 0
       -versionCodeOffset $(pipelineBuildNumber)
       -versionName '$(Build.BuildNumber)'
@@ -149,7 +158,7 @@ steps:
     configuration: '$(buildConfiguration)'
 
 ################################################################################
-# UI tests, preparatory steps common to AppCenter and emulator
+# UI tests, preparatory steps common to App Center and emulator
 
 - task: MSBuild@1
   displayName: 'build ui tests'
@@ -164,45 +173,6 @@ steps:
   inputs:
     solution: '**/*UITest*.csproj'
     configuration: '$(buildConfiguration)'
-
-################################################################################
-# AppCenter UI tests
-
-# default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
-# https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
-- task: UseNode@1
-  displayName: 'Use Node 10.15.1'
-  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
-  inputs:
-    version: 10.15.1
-
-- task: AppCenterTest@1
-  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
-  continueOnError: true
-  inputs:
-    appFile: '$(finalApkPathSigned)'
-    appSlug: 'JacobEgnerDemos/XamarinPipelineDemo' # orgname or username, then '/', then app name
-    devices: 'JacobEgnerDemos/demo_device_set' # uses same orgname or username, then '/', then device set name
-    frameworkOption: 'uitest'
-    prepareTests: true
-    runOptions: >
-      --test-output-dir "$(appCenterOutputDir)"
-    serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
-    uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
-    uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
-
-- pwsh: Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip" -DestinationPath "$(appCenterTestResultsDir)"
-  displayName: 'unzip App Center test results zip'
-  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
-  continueOnError: true
-
-- task: PublishTestResults@2
-  displayName: 'publish App Center UI test results'
-  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
-  inputs:
-    testRunTitle: 'Android App Center UI Test Run'
-    testResultsFormat: 'NUnit'
-    testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
 
 ################################################################################
 # emulator UI tests
@@ -247,19 +217,19 @@ steps:
 - pwsh: |
     Set-PSDebug -Trace 1
     $env:UITEST_APK_PATH = "$(finalApkPathSigned)"
-    $testAssemblies = Get-Item "$(uiTestDir)/bin/$(buildConfiguration)/XamarinPipelineDemo.UITest*.dll"
+    $testAssemblies = Get-Item "$(uiTestDir)/bin/$(buildConfiguration)/$(appName).UITest*.dll"
     nunit3-console $testAssemblies --output="$(uiTestLogPath)" --result="$(uiTestResultPath)"
-  displayName: 'run ui tests'
+  displayName: 'run android emulator ui tests'
   condition: and(succeeded(), eq(variables.wantEmulatorUiTests, true))
   continueOnError: true
   timeoutInMinutes: 120
 
 - task: PublishBuildArtifacts@1
-  displayName: 'publish ui test log artifact'
+  displayName: 'publish emulator ui test log artifact'
   condition: and(succeededOrFailed(), eq(variables.wantEmulatorUiTests, true))
   continueOnError: true
   inputs:
-   artifactName: 'UI test log'
+   artifactName: 'Android emulator UI test log'
    pathToPublish: '$(uiTestLogPath)'
 
 - task: PublishTestResults@2
@@ -273,3 +243,46 @@ steps:
     # tests may also fail due to pool agent problems;
     # using the following line still makes builds have warning status when UI tests fail
     failTaskOnFailedTests: false
+
+################################################################################
+# AppCenter UI tests
+
+# default nodejs version (v12) is not compatible with stuff used in AppCenterTest task
+# https://github.com/microsoft/appcenter-cli/issues/696#issuecomment-553218361
+- task: UseNode@1
+  displayName: 'Use Node 10.15.1'
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
+  inputs:
+    version: 10.15.1
+
+- task: AppCenterTest@1
+  condition: and(succeeded(), eq(variables.wantAppCenterUiTests, true))
+  continueOnError: true
+  inputs:
+    appFile: '$(finalApkPathSigned)'
+    appSlug: '$(appCenterOrgName)/$(appName)' # orgname or username, then '/', then app name
+    devices: '$(appCenterOrgName)/demo_device_set' # uses same orgname or username, then '/', then device set name
+    frameworkOption: 'uitest'
+    runOptions: --test-output-dir "$(appCenterOutputDir)" # only needed if publishing test results in Azure DevOps
+    serverEndpoint: 'AppCenterConnectionUserBasedFullAccess' # make a App Center user API token, then add service connection in Azure DevOps
+    uiTestBuildDirectory: '$(uiTestAssemblyDir)' # directory that contains the uitest assemblies, not the build directory
+    uiTestToolsDirectory: '$(uiTestAssemblyDir)' # build process puts test-cloud.exe in assembly dir
+
+- pwsh: Expand-Archive "$(appCenterOutputDir)/nunit_xml_zip.zip" -DestinationPath "$(appCenterTestResultsDir)"
+  displayName: 'unzip App Center test results zip'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+  continueOnError: true
+
+- task: PublishTestResults@2
+  displayName: 'simple publish App Center UI test results'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+  inputs:
+    testRunTitle: 'Android App Center UI Test Run'
+    testResultsFormat: 'NUnit'
+    testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
+
+- pwsh: |
+    Get-ChildItem .\artifacts\xmls\ | %{ Write-Output "##vso[results.publish type=NUnit;mergeResults=false;runTitle=Android App Center UI Test Run $($_.BaseName);publishRunAttachments=true;resultFiles=$($_.FullName);failTaskOnFailedTests=false;testRunSystem=VSTS - PTR;]"
+  displayName: 'complicated publish App Center UI test results with device name'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
+

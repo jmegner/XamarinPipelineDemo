@@ -1,14 +1,3 @@
-[CmdletBinding()]
-param (
-    [Switch]
-    $SkipBuild,
-
-    [string]
-    $BuildConfiguration = "Release"
-)
-
-#Set-PSDebug -Trace 1
-
 function CmdExists {
     param (
         [Parameter(Mandatory)]
@@ -40,13 +29,7 @@ function MsbuildPath {
     "C:\Program Files (x86)\Microsoft Visual Studio\$Year\$Edition\MSBuild\Current\Bin\MSBuild.exe"
 }
 
-# END OF FUNCTIONS #############################################################
-
-[string] $appName = "XamarinPipelineDemo"
-[string] $appPackageName = "com.demo.$appName"
-[string] $uiTestProjName = "$appName.UITest"
-
-if(!$SkipBuild) {
+function BuildApkAndUiTest {
     [string] $msbuild = ChooseCmd(@(
         "msbuild",
         (MsbuildPath("Enterprise")),
@@ -60,10 +43,7 @@ if(!$SkipBuild) {
         /p:Configuration=$BuildConfiguration
 }
 
-[string] $adb = ChooseCmd(@("adb", "C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe"))
-
-& $adb uninstall $appPackageName
-& $adb uninstall "$appPackageName.test"
+# END OF FUNCTIONS #############################################################
 
 if(!$env:ANDROID_HOME) {
     $env:ANDROID_HOME = "C:\Program Files (x86)\Android\android-sdk"
@@ -73,12 +53,10 @@ if(!$env:JAVA_HOME) {
     $env:JAVA_HOME = (Get-ChildItem 'C:\Program Files\Android\jdk\*jdk*')[0].FullName
 }
 
-$env:UITEST_APK_PATH = "../$appName.Android/bin/$BuildConfiguration/$appPackageName-Signed.apk"
+[string] $appName = "XamarinPipelineDemo"
+[string] $appPackageName = "com.demo.$appName"
+[string] $uiTestProjName = "$appName.UITest"
+[string] $adb = ChooseCmd(@("adb", "C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe"))
 
-$nunitConsole = ChooseCmd(@(
-    "nunit3-console",
-    "C:\Program Files (x86)\NUnit.org\nunit-console\nunit3-console.exe"))
-& $nunitConsole `
-    ../$uiTestProjName/bin/$BuildConfiguration/$appName.UITest.dll `
-    --output=uitest.log
+$env:UITEST_APK_PATH = "../$appName.Android/bin/$BuildConfiguration/$appPackageName-Signed.apk"
 
