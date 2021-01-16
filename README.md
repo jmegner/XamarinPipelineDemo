@@ -26,6 +26,7 @@
     * [Run Emulator UI Tests](#Run-Emulator-UI-Tests)
     * [Publish Emulator UI Tests](#Publish-Emulator-UI-Tests)
   * [UI Tests In App Center](#UI-Tests-In-App-Center)
+    * [Set Up App Center](#Set-Up-App-Center)
     * [Experiment With `appcenter` CLI](#Experiment-With-appcenter-CLI)
     * [Run App Center UI Tests](#Run-App-Center-UI-Tests)
     * [Publish App Center UI Tests In Azure DevOps](#Publish-App-Center-UI-Tests-In-Azure-DevOps)
@@ -51,7 +52,7 @@ Xamarin app...
 * Do unit tests (NUnit).
 * Do UI tests (Xamarin.UITest) in Azure DevOps, which involves several Android emulator steps.
 * Do UI tests in App Center.
-* Publish test results.
+* Publish all test results.
 
 This demo is not about getting started on unit testing or UI testing; the demo
 is about getting these things to work in an Azure DevOps pipeline.
@@ -1041,6 +1042,23 @@ you want to treat failing UI tests as warning or failure via the
 `failTaskOnFailedTests` input.
 
 ## UI Tests In App Center ##
+### Set Up App Center ###
+You'll need to have an App Center account, and you'll want to "Add new app". In
+the app's "Build" section, you'll select Azure DevOps for the service and
+select your Azure DevOps repo.
+
+Then, the "Build" section will show you the repo branches, and you want to
+click on the wrench icon for the appropriate branch (most likely `main` or
+`master`). The wrench icon will be invisible until you hover over the branch
+info box.
+
+Clicking on the wrench icon will bring you to build configuration settings for
+that branch; choose settings that make sense to you, but you will have to
+enable "Sign builds" and supply the appropriate keystore file and info.
+
+Then go to the "Test" section, "Device sets" subsection, and create a new
+device set.  You'll be using the device set name later.
+
 ### Experiment With `appcenter` CLI ###
 You should probably install the
 [`appcenter` CLI](https://github.com/microsoft/appcenter-cli)
@@ -1058,6 +1076,22 @@ for a working invokation of `appcenter` CLI.  Note that `appcenter` CLI needs
 care of by
 [`LocalScripts/common.ps1`](LocalScripts/common.ps1).
 
+For convenience, here's a PowerShell snippet that calls `appcenter` CLI (the
+only optional argument is `--test-output-dir`):
+```
+appcenter test run uitest `
+    --app "$orgName/$appName" `
+    --app-path "$env:UITEST_APK_PATH" `
+    --devices "$orgName/demo_device_set" `
+    --test-series "master" `
+    --locale "en_US" `
+    --build-dir "..\$uiTestProjName\bin\$BuildConfiguration" `
+    --uitest-tools-dir "..\$uiTestProjName\bin\$BuildConfiguration" `
+    --test-output-dir $testOutputDir
+```
+
+Remember, you need to build the Xamarin.UITest project before you call
+`appcenter`; that's why the `appcenter_uitest_run.ps1` script has a build step.
 
 ### Run App Center UI Tests ###
 The interplay between Azure DevOps and App Center is confusing, and I still

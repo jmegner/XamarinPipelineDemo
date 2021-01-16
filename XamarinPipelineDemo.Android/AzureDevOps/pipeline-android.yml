@@ -156,6 +156,7 @@ steps:
     command: 'test'
     projects: '**/*NUnit*.csproj'
     configuration: '$(buildConfiguration)'
+    testRunTitle: 'Unit Tests'
 
 ################################################################################
 # UI tests, preparatory steps common to App Center and emulator
@@ -274,10 +275,10 @@ steps:
   continueOnError: true
 
 - task: PublishTestResults@2
-  displayName: 'simple publish App Center UI test results'
+  displayName: 'simple-publish App Center UI test results'
   condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
   inputs:
-    testRunTitle: 'Android App Center UI Test Run'
+    testRunTitle: 'Android App Center UI Test Run (simple publish)'
     testResultsFormat: 'NUnit'
     testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
 
@@ -293,6 +294,6 @@ steps:
         + "testRunSystem=VSTS - PTR;" `
         + "]" `
         )}
-  displayName: 'complicated publish App Center UI test results with device name'
+  displayName: 'complicated-publish App Center UI test results with device name'
   condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
 
