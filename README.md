@@ -982,15 +982,18 @@ Finished with exit code 1 in 184 ms.
 ls: /data/data/com.demo.XamarinPipelineDemo.test/files/calabash_failure.out: No such file or directory
 ```
 ...then the most likely explanation is that your app crashed.  When you
-encounter this error, try out the exact APK file that the pipeline was using.
+encounter this error, locally try out UI tests with the exact APK file that the
+pipeline was using on an Android emulator (not a real Android device).
 The crash might happen only in `Release` build configuration, or something
-else.
+else.  Be aware that running the UI test on an Android emulator requires x86 to
+be one of the supported architectures (Android project properties => Android
+Options => Advanced => Supported Architectures).
 
 The job log having the error `System.Exception : Post to endpoint '/ping'
 failed after 100 retries. No http result received` is most likely due to an app
-crash, but can also be due to problems with the agent pool (as in it's not your
-fault, you might have to re-run the build a few times and hopefully the problem
-passes).
+crash or not including x86 as a supported architecture. This error can also be
+due to problems with the agent pool (as in it's not your fault, you might have
+to re-run the build a few times and hopefully the problem passes).
 
 Also, these "ClearAppData2" and "post to endpoint" errors might be followed by
 a `TearDown: System.NullReferenceException` error, and that is because the test

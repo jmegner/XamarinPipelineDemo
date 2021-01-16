@@ -282,7 +282,7 @@ steps:
     testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
 
 - pwsh: |
-    Get-ChildItem .\artifacts\xmls\ | ForEach-Object { Write-Output `
+    Get-ChildItem "$(appCenterTestResultsDir)/*.xml" | ForEach-Object { Write-Output `
         ( "##vso[results.publish " `
         + "runTitle=Android App Center UI Test Run $($_.BaseName);" `
         + "resultFiles=$($_.FullName);" `
