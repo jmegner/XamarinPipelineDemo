@@ -290,7 +290,7 @@ steps:
         + "mergeResults=false;" `
         + "publishRunAttachments=true;" `
         + "failTaskOnFailedTests=false;" `
-        + "testRunSystem=VSTS - PTR; `
+        + "testRunSystem=VSTS - PTR;" `
         + "]" `
         )}
   displayName: 'complicated publish App Center UI test results with device name'

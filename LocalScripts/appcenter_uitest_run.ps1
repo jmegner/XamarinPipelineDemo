@@ -9,8 +9,6 @@ param (
 
 . .\common.ps1
 
-echo $appName
-
 if(!$SkipBuild) {
     BuildApkAndUiTest
 }
@@ -34,4 +32,17 @@ appcenter test run uitest `
 # https://github.com/microsoft/appcenter-cli/issues/1208
 
 Expand-Archive "$testOutputDir\nunit_xml_zip.zip" -DestinationPath "$testResultDir"
+Write-Output "test result files..."
 Get-ChildItem "$testResultDir"
+Write-Output "what pipeline task could print to publish the test results..."
+Get-ChildItem .\artifacts\xmls\ | ForEach-Object { Write-Output `
+    ( "##vso[results.publish " `
+    + "runTitle=Android App Center UI Test Run $($_.BaseName);" `
+    + "resultFiles=$($_.FullName);" `
+    + "type=NUnit;" `
+    + "mergeResults=false;" `
+    + "publishRunAttachments=true;" `
+    + "failTaskOnFailedTests=false;" `
+    + "testRunSystem=VSTS - PTR;" `
+    + "]" `
+    )}
