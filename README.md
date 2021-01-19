@@ -1324,12 +1324,27 @@ for your convenience)...
   continueOnError: true
 
 - task: PublishTestResults@2
-  displayName: 'publish App Center UI test results'
+  displayName: 'simple-publish App Center UI test results'
   condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
   inputs:
-    testRunTitle: 'Android App Center UI Test Run'
+    testRunTitle: 'Android App Center UI Test Run (simple publish)'
     testResultsFormat: 'NUnit'
     testResultsFiles: '$(appCenterTestResultsDir)/*.xml'
+
+- pwsh: |
+    Get-ChildItem "$(appCenterTestResultsDir)/*.xml" | ForEach-Object { Write-Output `
+        ( "##vso[results.publish " `
+        + "runTitle=Android App Center UI Test Run $($_.BaseName);" `
+        + "resultFiles=$($_.FullName);" `
+        + "type=NUnit;" `
+        + "mergeResults=false;" `
+        + "publishRunAttachments=true;" `
+        + "failTaskOnFailedTests=false;" `
+        + "testRunSystem=VSTS - PTR;" `
+        + "]" `
+        )}
+  displayName: 'complicated-publish App Center UI test results with device name'
+  condition: and(succeededOrFailed(), eq(variables.wantAppCenterUiTests, true))
 ```
 
 First, we had to use `AppCenterTest`'s `runOptions` input to specify a
@@ -1365,19 +1380,24 @@ but I went with an inline PowerShell script because I can test out the exact
 behavior on my system, rather than doing multiple pipeline runs to troubleshoot
 whatever I did wrong with the `ExtractFiles` task.
 
-When exploring test results in Azure DevOps, the App Center UI test results
-will be named whatever you supplied as the `testRunTitle` input to the
-`PublishTestResults` task, and contain a "_1" style suffix if you tested more than one device.
-Currently, I don't know of a good way to have the test results specify the used device.
+In Azure DevOps, when exploring test results published by the `simple-publish`
+step, the App Center UI test results will be named whatever you supplied as the
+`testRunTitle` input to the `PublishTestResults` task, and contain a "_1" style
+suffix if you tested more than one device. Currently, I don't know of a simple
+way to have the test results specify the used device.
 
-One awkward way to have the device name as part of the test run name is to do a
-PowerShell script that publishes the test results in a loop.  I think the
-critical action of the `PublishTestResults` task is that it will output
-something like the following to the log/stdout:
+But here is a complicated way to get your App Center test results labeled with
+the device info: do a PowerShell one-liner to publish each test result xml file
+with a test run title that uses the xml file name. The critical ingredient of
+the `PublishTestResults` task is that it will output something like the
+following to the log/stdout:
 `##[debug]Processed: ##vso[results.publish type=NUnit;mergeResults=false;runTitle=Android App Center UI Test Run;publishRunAttachments=true;resultFiles=/Users/runner/work/1/a/AppCenterTest/TestResults/google_pixel_10_nunit_report.xml,/Users/runner/work/1/a/AppCenterTest/TestResults/google_pixel_3_11_nunit_report.xml;failTaskOnFailedTests=false;testRunSystem=VSTS - PTR;]`
 
 This `##vso[results.publish ...` magic spell is similar to how you can set pipeline variables by outputting
 `##vso[task.setvariable variable=someVariable]someValue`,
+
+So, my `complicated-publish` step just outputs that magic spell to stdout for
+each xml file. I don't know of anyone else who has done this.
 
 
 ## Problems Accessing Stuff ##
