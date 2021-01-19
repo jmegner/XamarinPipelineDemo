@@ -39,10 +39,10 @@ frustratingly difficult to get Xamarin.UITest tests for Android to run on a
 Microsoft-hosted agent in an Azure DevOps pipeline.  NO App Center.  NO
 self-hosted agents.  I just wanted to do everything in Azure DevOps.
 
-Once I got that to work, I did add in App Center UI testing...which was also
-surprisingly difficult, so hopefully this demo is helpful for that as well.
+(Once I got that to work, I did add in App Center UI testing...which was also
+surprisingly difficult, so hopefully this demo is helpful for that as well.)
 
-So, this demo shows how to accomplish that, and some other common goals for
+This demo has grown into showing how to accomplish quite a few common goals for
 an Azure Devops continuous integration pipeline for the Android portion of a
 Xamarin app...
 * Each build gets its own `versionCode` and `versionName`.
@@ -50,24 +50,22 @@ Xamarin app...
 * Sign the APK.
 * Publish the APK as a pipeline artifact.
 * Do unit tests (NUnit).
-* Do UI tests (Xamarin.UITest) in Azure DevOps, which involves several Android emulator steps.
+* Do UI tests (Xamarin.UITest) in Azure DevOps, which involves several Android
+  emulator steps.
 * Do UI tests in App Center.
-* Publish all test results.
+* Publish all test results (including device-labeled App Center test results in
+  Azure DevOps test explorer).
 
 This demo is not about getting started on unit testing or UI testing; the demo
 is about getting these things to work in an Azure DevOps pipeline.
 
 You can see a
-[successful run](https://jmegner.visualstudio.com/Demos/_build/results?buildId=4&view=results),
+[successful run](https://jmegner.visualstudio.com/Demos/_build/results?buildId=59&view=results),
 a
-[successful job overview](https://jmegner.visualstudio.com/Demos/_build/results?buildId=4&view=logs),
-[published artifacts](https://jmegner.visualstudio.com/Demos/_build/results?buildId=4&view=artifacts&pathAsName=false&type=publishedArtifacts),
+[successful job overview](https://jmegner.visualstudio.com/Demos/_build/results?buildId=59&view=logs),
+[published artifacts](https://jmegner.visualstudio.com/Demos/_build/results?buildId=59&view=artifacts&pathAsName=false&type=publishedArtifacts),
 and
-[unit+UI test results](https://jmegner.visualstudio.com/Demos/_build/results?buildId=4&view=ms.vss-test-web.build-test-results-tab)
-(also alernate view for
-[unit test run](https://jmegner.visualstudio.com/Demos/_testManagement/runs?_a=runCharts&runId=1000012)
-and
-[UI test run](https://jmegner.visualstudio.com/Demos/_testManagement/runs?runId=1000014&_a=runCharts)).
+[unit+UI test results](https://jmegner.visualstudio.com/Demos/_build/results?buildId=59&view=ms.vss-test-web.build-test-results-tab).
 
 This repo is available as a
 [visualstudio.com repo](https://jmegner.visualstudio.com/Demos/_git/XamarinPipelineDemo)
